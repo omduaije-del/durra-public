@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>دُرى — معلمة الرياضيات الذكية</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+</head>
+<body>
+  <div class="wrapper">
+    <header class="hero">
+      <div class="avatar">
+        <img src="durra.png" alt="دُرى" onerror="this.style.display='none';this.parentElement.classList.add('fallback')" />
+      </div>
+      <h1>دُرى — معلمة الرياضيات الذكية</h1>
+      <p class="subtitle">فقط عن الرياضيات — اطرحي سؤالك كتابيًا أو صوتيًا، ويمكنك سماع الإجابة اختياريًا.</p>
+    </header>
+
+    <main class="panel">
+      <div class="options">
+        <label><input id="voiceQuestion" type="checkbox" /> السؤال صوتي</label>
+        <label><input id="voiceAnswer" type="checkbox" /> الإجابة صوتية</label>
+
+        <!-- ✅ اختيار الصوت -->
+        <label>
+          الصوت:
+          <select id="voiceSelect" class="input" style="min-width:220px">
+            <option value="">(تلقائي)</option>
+          </select>
+        </label>
+
+        <button id="btnMic" class="btn">🎤 اسألي صوتيًا</button>
+        <button id="btnStop" class="btn secondary" disabled>⏹️ إيقاف</button>
+      </div>
+
+      <form id="form" class="ask">
+        <input id="textInput" class="input" dir="rtl" placeholder="اكتبي سؤالك الرياضي هنا…" />
+        <button type="submit" class="btn primary">إرسال</button>
+      </form>
+
+      <div id="messages" class="messages" aria-live="polite"></div>
+    </main>
+
+    <footer class="foot">
+      <small>© دُرى — للرياضيات فقط</small>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

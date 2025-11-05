@@ -1,0 +1,82 @@
+/* خلفية وإعدادات عامة */
+:root{
+  --bg1:#0e1b2d; --bg2:#1b2b44;
+  --card:#0f172a; --edge:#213047;
+  --txt:#f8fafc; --muted:#cbd5e1;
+  --acc1:#38bdf8; --acc2:#a78bfa;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font-family:"Tajawal", system-ui, Segoe UI, Arial;
+  background:
+    radial-gradient(1200px 500px at 50% -200px, rgba(56,189,248,.18), transparent),
+    linear-gradient(135deg, var(--bg1), var(--bg2));
+  color:var(--txt);
+  display:flex; min-height:100vh;
+}
+.wrapper{max-width:880px; margin:auto; width:100%; padding:20px}
+
+/* هيدر بدون أي معادلات */
+.hero{ text-align:center; margin:10px 0 16px }
+@keyframes float { 0%{transform:translateY(0)} 50%{transform:translateY(-6px)} 100%{transform:translateY(0)} }
+@keyframes glow  { from{box-shadow:0 0 0 rgba(34,211,238,0)} to{box-shadow:0 0 24px rgba(34,211,238,.35)} }
+
+.avatar{
+  width:160px; height:160px; margin:14px auto 10px;
+  border-radius:50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.18), rgba(255,255,255,.05));
+  border: 6px solid rgba(255,255,255,.15);
+  display:flex; align-items:center; justify-content:center;
+  animation: float 4s ease-in-out infinite, glow 2.2s ease-in-out infinite alternate;
+  overflow:hidden;
+}
+.avatar img{
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+/* في حال الصورة ما لقيت، يظهر رمز بسيط بدلها */
+.avatar.fallback::before{
+  content:"∑"; font-weight:700; font-size:88px; color:rgba(56,189,248,.9);
+}
+
+h1{margin:8px 0 6px; font-size:28px}
+.subtitle{margin:0; color:var(--muted)}
+
+/* البطاقة */
+.panel{
+  background:linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:18px; padding:18px; box-shadow:0 10px 30px rgba(0,0,0,.28);
+}
+
+/* عناصر التحكم */
+.options{display:flex; gap:12px; align-items:center; flex-wrap:wrap; justify-content:center; margin-bottom:12px}
+.ask{display:flex; gap:10px; flex-wrap:wrap; justify-content:center}
+.input{
+  flex:1; min-width:260px; padding:12px 14px;
+  border-radius:10px; border:1px solid var(--edge); background:#0b1223; color:var(--txt);
+}
+.input:focus{outline:none; border-color:#4cc9f0; box-shadow:0 0 0 3px rgba(76,201,240,.15)}
+
+.btn{
+  border:none; border-radius:10px; padding:10px 16px; cursor:pointer; transition:.25s;
+  background:#1e293b; color:#e2e8f0;
+}
+.btn.primary{
+  background:linear-gradient(90deg, var(--acc1), var(--acc2)); color:#051724; font-weight:700;
+}
+.btn.secondary{background:#334155}
+.btn:hover{opacity:.9}
+
+/* الرسائل */
+.messages{
+  margin-top:14px; max-height:60vh; overflow:auto; display:flex; flex-direction:column; gap:10px; text-align:right;
+}
+.message{padding:12px 14px; border-radius:12px; line-height:1.7; font-size:16px}
+.message.user{background:#15233b; align-self:flex-start}
+.message.assistant{background:#1e293b; border:1px solid rgba(255,255,255,.12); align-self:flex-end}
+.messages::-webkit-scrollbar{width:8px}
+.messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18); border-radius:8px}
+
+/* فوتر */
+.foot{margin-top:12px; text-align:center; color:#9aa7bb}
