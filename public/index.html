@@ -6,6 +6,16 @@
   <title>دُرى — معلمة الرياضيات الذكية</title>
   <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+
+  <!-- Math layout hotfix: prevent glyph overlap and RTL interference -->
+  <style>
+    mjx-container { direction: ltr !important; unicode-bidi: isolate !important; line-height: 1.25 !important; }
+    mjx-container * { letter-spacing: normal !important; }
+    [dir="rtl"] mjx-container { text-align: left !important; }
+    .katex { direction: ltr !important; unicode-bidi: isolate !important; line-height: 1.25 !important; }
+    .katex * { letter-spacing: normal !important; }
+  </style>
+
 </head>
 <body>
   <div class="wrapper">
@@ -29,6 +39,13 @@
             <option value="">(تلقائي)</option>
           </select>
         </label>
+
+        <label style="margin-inline-start:8px">اللغة:
+  <select id="langSelect">
+    <option value="ar" selected>العربية</option>
+    <option value="en">English</option>
+  </select>
+</label>
 
         <button id="btnMic" class="btn">🎤 اسألي صوتيًا</button>
         <button id="btnStop" class="btn secondary" disabled>⏹️ إيقاف</button>

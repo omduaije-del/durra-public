@@ -8,8 +8,33 @@ const elBtnStop    = document.getElementById('btnStop');
 const elVoiceQ     = document.getElementById('voiceQuestion');
 const elVoiceA     = document.getElementById('voiceAnswer');
 const elVoiceSelect= document.getElementById('voiceSelect');
+const elLangSelect = document.getElementById('langSelect');
 
 let recognition = null;
+
+/* اختيار اللغة عربي/إنجليزي */
+function applyLang(lang){
+  const isAr = (lang === 'ar');
+  document.documentElement.lang = isAr ? 'ar' : 'en';
+  document.documentElement.dir  = isAr ? 'rtl' : 'ltr';
+  const input = document.getElementById('textInput');
+  if (input){
+    input.setAttribute('lang', lang);
+    input.style.direction = isAr ? 'rtl' : 'ltr';
+    input.style.textAlign = isAr ? 'right' : 'left';
+  }
+  // اضبطي لغة التعرف الصوتي إن كانت مهيأة
+  try{ if (recognition){ recognition.lang = isAr ? 'ar-SA' : 'en-US'; } }catch(e){}
+  // إعادة ملء الأصوات وفق اللغة
+  try{ fillVoices && fillVoices(); }catch(e){}
+}
+if (typeof elLangSelect !== 'undefined' && elLangSelect){
+  elLangSelect.addEventListener('change', e=> applyLang(e.target.value));
+  applyLang(elLangSelect.value || 'ar');
+} else {
+  applyLang('ar');
+}
+
 let history = [];
 
 /* تحويل الأرقام إلى عربية-هندية */
@@ -42,20 +67,24 @@ function cheer(){
 let voiceList = [];
 let chosenVoice = null;
 
-function fillVoices() {
-  if (!window.speechSynthesis) return;
-  voiceList = speechSynthesis.getVoices();
-  // أعيدي تعبئة القائمة
+function fillVoices(){
+  if (!window.speechSynthesis || !elVoiceSelect) return;
+  const lang = (elLangSelect && elLangSelect.value) || 'ar';
+  const prefer = lang === 'ar' ? 'ar' : 'en-';
+  const voices = speechSynthesis.getVoices() || [];
+  // إعادة بناء القائمة
   elVoiceSelect.innerHTML = '<option value="">(تلقائي)</option>';
-  // أصوات عربية أولاً
-  const ar = voiceList.filter(v => v.lang && v.lang.toLowerCase().startsWith('ar'));
-  const nonAr = voiceList.filter(v => !(v.lang && v.lang.toLowerCase().startsWith('ar')));
-  const ordered = [...ar, ...nonAr];
-
-  ordered.forEach((v, i) => {
+  const sorted = voices.slice().sort((a,b)=>{
+    const ap = (a.lang||'').toLowerCase().startsWith(prefer) ? -1 : 1;
+    const bp = (b.lang||'').toLowerCase().startsWith(prefer) ? -1 : 1;
+    return ap - bp || a.name.localeCompare(b.name);
+  });
+  for (const v of sorted){
     const opt = document.createElement('option');
-    opt.value = v.name;
-    opt.textContent = `${v.name} — ${v.lang || ''}`;
+    opt.value = v.name; opt.textContent = `${v.name} (${v.lang||''})`;
+    elVoiceSelect.appendChild(opt);
+  }
+} — ${v.lang || ''}`;
     elVoiceSelect.appendChild(opt);
   });
 
@@ -144,7 +173,7 @@ function startRecognition(){
     alert('التعرّف الصوتي غير مدعوم في هذا المتصفح.'); return;
   }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR(); recognition.lang='ar-SA'; recognition.interimResults=false; recognition.maxAlternatives=1;
+  recognition = new SR(); recognition.lang = (elLangSelect && elLangSelect.value === 'en') ? 'en-US' : 'ar-SA'; recognition.interimResults=false; recognition.maxAlternatives=1;
   recognition.onresult = (ev)=>{
     const text = ev.results[0][0].transcript; elInput.value=text;
     if (elVoiceQ?.checked) askGPT(text);
@@ -153,7 +182,18 @@ function startRecognition(){
   recognition.onend = ()=>{ elBtnMic.disabled=false; elBtnStop.disabled=true; };
   recognition.start(); elBtnMic.disabled=true; elBtnStop.disabled=false;
 }
-function stopRecognition(){ try{recognition && recognition.stop();}catch(e){} elBtnMic.disabled=false; elBtnStop.disabled=true; }
+function stopRecognition(){
+  try{ recognition && recognition.stop(); }catch(e){}
+  try{ recognition && recognition.abort && recognition.abort(); }catch(e){}
+  if (window.speechSynthesis && (speechSynthesis.speaking || speechSynthesis.paused)){
+    try{ speechSynthesis.cancel(); }catch(e){}
+  }
+  if (window.mediaRecorder && mediaRecorder.state && mediaRecorder.state !== 'inactive'){
+    try{ mediaRecorder.stop(); }catch(e){}
+  }
+  try{ elBtnMic && (elBtnMic.disabled=false); }catch(e){}
+  try{ elBtnStop && (elBtnStop.disabled=true); }catch(e){}
+}catch(e){} elBtnMic.disabled=false; elBtnStop.disabled=true; }
 
 elBtnMic.addEventListener('click', startRecognition);
 elBtnStop.addEventListener('click', stopRecognition);
