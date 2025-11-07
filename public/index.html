@@ -1,41 +1,40 @@
-// Minimal API for Durra — CommonJS style
-const express = require("express");
-const cors = require("cors");
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ذُرّى — معلمة الرياضيات الذكية</title>
+  <link rel="stylesheet" href="./style.css" />
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto; background:#0e2336; color:#f5f7fa; margin:0}
+    .wrap{max-width:900px; margin:40px auto; padding:24px}
+    .card{background:#17364f; border-radius:16px; padding:20px; box-shadow:0 6px 16px rgba(0,0,0,.25)}
+    h1{margin:0 0 12px;font-size:28px}
+    .row{display:flex; gap:12px; align-items:center; margin:14px 0}
+    input[type="text"]{flex:1; padding:12px 14px; border-radius:12px; border:1px solid #305a79; background:#0f2b40; color:#eaf2f7}
+    button{padding:12px 18px; border:0; border-radius:12px; background:#5ec2ff; color:#072134; font-weight:700; cursor:pointer}
+    button:disabled{opacity:.65; cursor:not-allowed}
+    .out{white-space:pre-wrap; background:#0f2b40; border:1px solid #305a79; border-radius:12px; padding:14px; min-height:80px}
+    .hint{opacity:.8; font-size:13px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>ذُرّى — معلمة الرياضيات الذكية</h1>
+      <p class="hint">اكتبي سؤالك الرياضي واضغطي إرسال. (الرد يظهر أسفل، بدون تبديل الصفحة)</p>
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+      <form id="askForm" autocomplete="off">
+        <div class="row">
+          <input id="question" type="text" placeholder="اكتبي سؤالك هنا..." required />
+          <button id="sendBtn" type="submit">إرسال</button>
+        </div>
+      </form>
 
-app.use(express.json({ limit: "1mb" }));
-app.use(cors({ origin: "*", credentials: false }));
+      <div id="answer" class="out"></div>
+    </div>
+  </div>
 
-// فحص الصحة
-app.get("/health", (req, res) => {
-  res.json({ ok: true, status: "server running" });
-});
-
-// نقطة الاستقبال /ask (تجريبية الآن)
-app.post("/ask", async (req, res) => {
-  try {
-    const { question } = req.body || {};
-    if (!question || !question.trim()) {
-      return res.status(400).json({ error: "يرجى إدخال سؤال" });
-    }
-
-    // رد تجريبي فوري — فقط للتأكد أن الواجهة تتصل بالسيرفر
-    const answer = `إجابة تجريبية ✅: "${question}" تم الاستلام بنجاح.`;
-    return res.json({ answer });
-  } catch (err) {
-    console.error("ASK_ERROR:", err);
-    res.status(500).json({ error: "حدث خطأ في السيرفر" });
-  }
-});
-
-// (اختياري للتجربة) GET /ask يرجّع إرشاد
-app.get("/ask", (req, res) => {
-  res.json({ msg: "أرسلي POST على /ask مع {question: '...'}" });
-});
-
-// تشغيل
-app.listen(PORT, () => {
-  console.log(`Server is running on port: ${PORT}`);
-});
+  <script src="./app.js"></script>
+</body>
+</html>
