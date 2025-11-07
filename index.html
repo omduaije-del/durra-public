@@ -1,26 +1,28 @@
-<!DOCTYPE html>
-<html lang="ar">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Durra App</title>
-  <style>
-    body {
-      font-family: "Tajawal", sans-serif;
-      text-align: center;
-      padding: 80px;
-      background-color: #fefaf6;
-    }
-    h1 {
-      color: #5c3d2e;
-    }
-    p {
-      color: #8b6b4f;
-    }
-  </style>
-</head>
-<body>
-  <h1>✨ مرحبًا بك في تطبيق Durra ✨</h1>
-  <p>تم رفع الموقع بنجاح عبر GitHub و Render 🎉</p>
-</body>
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ذُرّى — معلمة الرياضيات الذكية</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="wrap">
+      <h1>ذُرّى — معلمة الرياضيات الذكية</h1>
+      <p class="hint">اسألي سؤال رياضي واكبسي إرسال. ستظهر الإجابة هنا بدون تبديل الصفحة.</p>
+
+      <form id="askForm" class="card">
+        <label for="question">سؤالك</label>
+        <input id="question" type="text" placeholder="اكتبي سؤالك هنا..." autocomplete="off" />
+        <button id="sendBtn" type="submit">إرسال</button>
+      </form>
+
+      <section class="answer">
+        <h2>الإجابة</h2>
+        <div id="answer">— لم يتم إرسال سؤال بعد —</div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
 </html>
