@@ -1,69 +1,41 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>دُرى — معلمة الرياضيات الذكية</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+// Minimal API for Durra — CommonJS style
+const express = require("express");
+const cors = require("cors");
 
-  <!-- Math layout hotfix: prevent glyph overlap and RTL interference -->
-  <style>
-    mjx-container { direction: ltr !important; unicode-bidi: isolate !important; line-height: 1.25 !important; }
-    mjx-container * { letter-spacing: normal !important; }
-    [dir="rtl"] mjx-container { text-align: left !important; }
-    .katex { direction: ltr !important; unicode-bidi: isolate !important; line-height: 1.25 !important; }
-    .katex * { letter-spacing: normal !important; }
-  </style>
+const app = express();
+const PORT = process.env.PORT || 3000;
 
-</head>
-<body>
-  <div class="wrapper">
-    <header class="hero">
-      <div class="avatar">
-        <img src="durra.png" alt="دُرى" onerror="this.style.display='none';this.parentElement.classList.add('fallback')" />
-      </div>
-      <h1>دُرى — معلمة الرياضيات الذكية</h1>
-      <p class="subtitle">فقط عن الرياضيات — اطرحي سؤالك كتابيًا أو صوتيًا، ويمكنك سماع الإجابة اختياريًا.</p>
-    </header>
+app.use(express.json({ limit: "1mb" }));
+app.use(cors({ origin: "*", credentials: false }));
 
-    <main class="panel">
-      <div class="options">
-        <label><input id="voiceQuestion" type="checkbox" /> السؤال صوتي</label>
-        <label><input id="voiceAnswer" type="checkbox" /> الإجابة صوتية</label>
+// فحص الصحة
+app.get("/health", (req, res) => {
+  res.json({ ok: true, status: "server running" });
+});
 
-        <!-- ✅ اختيار الصوت -->
-        <label>
-          الصوت:
-          <select id="voiceSelect" class="input" style="min-width:220px">
-            <option value="">(تلقائي)</option>
-          </select>
-        </label>
+// نقطة الاستقبال /ask (تجريبية الآن)
+app.post("/ask", async (req, res) => {
+  try {
+    const { question } = req.body || {};
+    if (!question || !question.trim()) {
+      return res.status(400).json({ error: "يرجى إدخال سؤال" });
+    }
 
-        <label style="margin-inline-start:8px">اللغة:
-  <select id="langSelect">
-    <option value="ar" selected>العربية</option>
-    <option value="en">English</option>
-  </select>
-</label>
+    // رد تجريبي فوري — فقط للتأكد أن الواجهة تتصل بالسيرفر
+    const answer = `إجابة تجريبية ✅: "${question}" تم الاستلام بنجاح.`;
+    return res.json({ answer });
+  } catch (err) {
+    console.error("ASK_ERROR:", err);
+    res.status(500).json({ error: "حدث خطأ في السيرفر" });
+  }
+});
 
-        <button id="btnMic" class="btn">🎤 اسألي صوتيًا</button>
-        <button id="btnStop" class="btn secondary" disabled>⏹️ إيقاف</button>
-      </div>
+// (اختياري للتجربة) GET /ask يرجّع إرشاد
+app.get("/ask", (req, res) => {
+  res.json({ msg: "أرسلي POST على /ask مع {question: '...'}" });
+});
 
-      <form id="form" class="ask">
-        <input id="textInput" class="input" dir="rtl" placeholder="اكتبي سؤالك الرياضي هنا…" />
-        <button type="submit" class="btn primary">إرسال</button>
-      </form>
-
-      <div id="messages" class="messages" aria-live="polite"></div>
-    </main>
-
-    <footer class="foot">
-      <small>© دُرى — للرياضيات فقط</small>
-    </footer>
-  </div>
-
-  <script src="app.js"></script>
-</body>
-</html>
+// تشغيل
+app.listen(PORT, () => {
+  console.log(`Server is running on port: ${PORT}`);
+});
