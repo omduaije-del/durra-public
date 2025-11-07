@@ -1,4 +1,36 @@
+// ===== Glue: وجّه أي طلبات نسبية نحو السيرفر على Render =====
+const API_URL = "https://durra-server.onrender.com";
 
+// لزوم التوافق: إذا فيه /ask أو /v1/... أو أي مسار يبدأ بـ / ، نخليه يروح لسيرفر Render.
+(function patchFetchBase() {
+  if (!window.__fetchPatched) {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, init = {}) => {
+      let url = typeof input === "string" ? input : (input && input.url) || "";
+
+      if (typeof url === "string") {
+        const trim = (s) => s.trim();
+        url = trim(url);
+
+        // حالات شائعة:
+        // fetch('/ask' ...)  -> https://durra-server.onrender.com/ask
+        // fetch('/v1/...')   -> https://durra-server.onrender.com/v1/...
+        // fetch('ask')       -> https://durra-server.onrender.com/ask
+        if (url === "ask" || url.startsWith("/ask")) {
+          url = API_URL + (url.startsWith("/") ? url : "/" + url);
+        } else if (url.startsWith("/v1/")) {
+          url = API_URL + url;
+        } else if (url.startsWith("/")) {
+          // أي مسار نسبي يبدأ بـ / نرسله للسيرفر
+          url = API_URL + url;
+        }
+      }
+
+      return originalFetch(url, init);
+    };
+    window.__fetchPatched = true;
+  }
+})();
 /* واجهة دُرى */
 const elMessages   = document.getElementById('messages');
 const elForm       = document.getElementById('form');
