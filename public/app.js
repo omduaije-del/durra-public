@@ -1,42 +1,41 @@
-// عدلّي هذا لو كان اسم خدمة السيرفر مختلف
-const API_BASE = "https://durra-server.onrender.com";
+// يمنع تغيّر الصفحة ويطلب POST إلى /ask ثم يعرض الإجابة
+const form = document.getElementById('askForm');
+const input = document.getElementById('question');
+const sendBtn = document.getElementById('sendBtn');
+const answerBox = document.getElementById('answer');
 
-const form = document.getElementById("askForm");
-const input = document.getElementById("question");
-const out = document.getElementById("answer");
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();              // أهم سطر: لا تخلّي المتصفح يروح إلى /ask
+  const question = (input.value || '').trim();
+  if (!question) return;
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault(); // يمنع تبديل الصفحة
-  const question = (input.value || "").trim();
-
-  if (!question) {
-    out.textContent = "اكتبي سؤالك أولاً.";
-    return;
-  }
-
-  out.textContent = "جاري الإرسال…";
+  sendBtn.disabled = true;
+  answerBox.textContent = '...جاري التفكير';
 
   try {
-    const res = await fetch(`${API_BASE}/ask`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const res = await fetch('/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ question })
     });
 
-    if (!res.ok) {
-      // حاول نقرأ رسالة الخطأ من السيرفر
-      let msg = `HTTP ${res.status}`;
-      try {
-        const j = await res.json();
-        if (j && j.error) msg = j.error;
-      } catch {}
-      throw new Error(msg);
-    }
+    // إذا جاءت صفحة HTML بدل JSON (مثلاً بالغلط)، لا تكسّر
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { error: text }; }
 
-    const data = await res.json();
-    out.textContent = data.answer || "تم الاستلام ✅";
+    if (data.answer) {
+      answerBox.textContent = data.answer;
+    } else if (data.msg) {
+      answerBox.textContent = data.msg;
+    } else if (data.error) {
+      answerBox.textContent = 'خطأ: ' + data.error;
+    } else {
+      answerBox.textContent = 'لم يصل رد مفهوم من الخادم.';
+    }
   } catch (err) {
-    console.error(err);
-    out.textContent = "صار خطأ أثناء الإرسال. جرّبي مرة ثانية.";
+    answerBox.textContent = 'تعذر الاتصال بالخادم.';
+  } finally {
+    sendBtn.disabled = false;
   }
 });
