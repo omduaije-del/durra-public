@@ -1,41 +1,35 @@
-// يمنع تغيّر الصفحة ويطلب POST إلى /ask ثم يعرض الإجابة
-const form = document.getElementById('askForm');
-const input = document.getElementById('question');
-const sendBtn = document.getElementById('sendBtn');
-const answerBox = document.getElementById('answer');
+// واجهة ذرى - معلمة الرياضيات الذكية
+const form = document.querySelector("form");
+const input = document.querySelector("input");
+const resultBox = document.querySelector(".result");
 
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();              // أهم سطر: لا تخلّي المتصفح يروح إلى /ask
-  const question = (input.value || '').trim();
+const API_URL = "https://durra-server.onrender.com/ask"; // <-- تأكدي أنه هذا نفس رابط السيرفر
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = input.value.trim();
   if (!question) return;
 
-  sendBtn.disabled = true;
-  answerBox.textContent = '...جاري التفكير';
+  resultBox.innerHTML = "⏳ جاري التفكير...";
 
   try {
-    const res = await fetch('/ask', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question })
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
     });
 
-    // إذا جاءت صفحة HTML بدل JSON (مثلاً بالغلط)، لا تكسّر
-    const text = await res.text();
-    let data;
-    try { data = JSON.parse(text); } catch { data = { error: text }; }
+    const data = await response.json();
 
     if (data.answer) {
-      answerBox.textContent = data.answer;
-    } else if (data.msg) {
-      answerBox.textContent = data.msg;
+      resultBox.innerHTML = `<b>الإجابة:</b> ${data.answer}`;
     } else if (data.error) {
-      answerBox.textContent = 'خطأ: ' + data.error;
+      resultBox.innerHTML = `<span style="color:red">⚠️ ${data.error}</span>`;
     } else {
-      answerBox.textContent = 'لم يصل رد مفهوم من الخادم.';
+      resultBox.innerHTML = "❔ لم تصل إجابة من الخادم.";
     }
   } catch (err) {
-    answerBox.textContent = 'تعذر الاتصال بالخادم.';
-  } finally {
-    sendBtn.disabled = false;
+    console.error(err);
+    resultBox.innerHTML = "🚨 خطأ في الاتصال بالسيرفر.";
   }
 });
