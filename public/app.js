@@ -1,108 +1,69 @@
-// عدلي الرابط إذا كان اسم خدمة السيرفر مختلف
-const API_BASE = "https://durra-server.onrender.com";
+// public/app.js
 
-document.addEventListener("DOMContentLoaded", () => {
-  // عناصر الواجهة
-  const form = document.querySelector("form.ask");
-  const input = document.getElementById("textInput");
-  const output = document.getElementById("answer");
-  const btnStart = document.getElementById("btnStart");
-  const btnStop  = document.getElementById("btnStop");
-  const elVoiceQ = document.getElementById("voiceQuestion");
-  const elVoiceA = document.getElementById("voiceAnswer");
-  const elLang   = document.getElementById("langSelect");
-  const sendBtn  = form?.querySelector('button[type="submit"]');
+// ================== الإعدادات ==================
+const API_BASE = "https://durra-server.onrender.com"; // عدّليها إذا اسم خدمتك مختلف
 
-  if (!form || !input || !output) return;
+// عناصر الصفحة
+const elInput   = document.getElementById("textInput");
+const elSend    = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer  = document.getElementById("answer");
+const elStatus  = document.getElementById("serverStatus"); // اختياري لو موجود
 
-  // ——— التعرف الصوتي (المتصفح فقط)
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let recognition = null;
-  if (SR) {
-    recognition = new SR();
-    recognition.interimResults = false;
-    recognition.continuous = false;
-    recognition.lang = elLang.value;
+// ============== فحص اتصال الخادم ==============
+async function ping() {
+  try {
+    const r = await fetch(${API_BASE}/health, { cache: "no-store" });
+    const j = await r.json();
+    if (elStatus) elStatus.textContent = j?.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
+    return true;
+  } catch {
+    if (elStatus) elStatus.textContent = "غير متصل ⚠";
+    return false;
+  }
+}
 
-    recognition.onresult = (e) => {
-      const txt = e.results[0] && e.results[0][0] ? e.results[0][0].transcript : "";
-      if (txt) {
-        input.value = txt;
-        form.dispatchEvent(new Event("submit"));
-      }
-    };
-    recognition.onend = () => {
-      btnStart.disabled = false;
-      btnStop.disabled = true;
-    };
-  } else {
-    // لو المتصفح لا يدعم التعرف الصوتي
-    btnStart.disabled = true;
-    btnStop.disabled  = true;
+// ============== إرسال السؤال ==============
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك…");
+    return;
   }
 
-  // زر ابدأ/إيقاف
-  btnStart?.addEventListener("click", () => {
-    if (!recognition) return;
-    recognition.lang = elLang.value;
-    btnStart.disabled = true;
-    btnStop.disabled  = false;
-    recognition.start();
-  });
-  btnStop?.addEventListener("click", () => {
-    try { recognition && recognition.stop(); } catch {}
-    btnStart.disabled = false;
-    btnStop.disabled  = true;
-  });
+  show("…أفكّر بالإجابة");
+  try {
+    const res = await fetch(${API_BASE}/ask, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
+    });
 
-  // ——— الإرسال إلى السيرفر
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    let question = input.value.trim();
-    if (!question && elVoiceQ.checked) {
-      // لو المستخدم محدد “سؤال صوتي” لكن ما استُخدم المايك بعد
-      output.textContent = "🎙 فعّلي الميك واضغطي ابدأ ثم تكلّمي، أو اكتبي سؤالك.";
-      return;
-    }
-    if (!question) {
-      output.textContent = "اكتبي سؤالك أولاً 🌸";
-      return;
+    if (!res.ok) {
+      const txt = await res.text().catch(()=> "");
+      throw new Error(HTTP ${res.status} ${txt});
     }
 
-    sendBtn.disabled = true;
-    output.textContent = "⏳ جاري التفكير...";
+    const data = await res.json();
+    show(data?.answer || "ما وصلت إجابة من الخادم.");
+  } catch (err) {
+    show("صار خطأ بالاتصال. جرّبي ثانية.");
+    console.error("ASK_ERROR:", err);
+  }
+}
 
-    try {
-      const res = await fetch(${API_BASE}/ask, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      });
+// ============== أدوات صغيرة ==============
+function show(text) {
+  if (elAnswer) elAnswer.textContent = text;
+}
 
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { data = { answer: text }; }
-
-      if (res.ok && (data.answer || data.msg)) {
-        const ans = (data.answer || data.msg).toString();
-        output.textContent = ans;
-
-        // نطق الإجابة
-        if (elVoiceA.checked && "speechSynthesis" in window) {
-          const utter = new SpeechSynthesisUtterance(ans);
-          utter.lang = elLang.value;
-          window.speechSynthesis.cancel();
-          window.speechSynthesis.speak(utter);
-        }
-      } else {
-        output.textContent = "⚠ لم يتم الرد، أعيدي المحاولة.";
-      }
-    } catch (err) {
-      console.error(err);
-      output.textContent = "🚨 تعذر الاتصال بالسيرفر.";
-    } finally {
-      sendBtn.disabled = false;
-    }
+// أحداث الواجهة
+if (elSend) {
+  elSend.addEventListener("click", () => ask(elInput.value));
+}
+if (elInput) {
+  elInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") ask(elInput.value);
   });
-});
+}
+
+// تشغيل أولي
+ping();
