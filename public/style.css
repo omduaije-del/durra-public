@@ -15,8 +15,7 @@ body{
   color:var(--txt);
   min-height:100vh; display:flex;
 }
-
-.wrapper{max-width:880px; width:100%; margin:auto; padding:20px}
+.wrapper{max-width:980px; width:100%; margin:auto; padding:20px}
 
 .hero{ text-align:center; margin:10px 0 16px }
 .avatar{ width:160px; height:160px; margin:14px auto 10px; border-radius:50%; overflow:hidden;
@@ -25,6 +24,20 @@ body{
 .avatar img{ width:100%; height:100%; object-fit:cover; display:block }
 h1{ margin:8px 0 4px }
 .sub{ color:var(--muted); margin:0 0 10px; font-size:14px }
+
+.controls{
+  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
+  background:rgba(255,255,255,.06); border-radius:14px; padding:10px;
+  border:1px solid rgba(255,255,255,.08); margin-bottom:10px
+}
+.chk{display:flex; align-items:center; gap:6px; padding:6px 10px; background:#0b1625;
+  border-radius:10px; border:1px solid rgba(255,255,255,.06); font-size:14px}
+.sel{display:flex; align-items:center; gap:8px; padding:6px 10px; background:#0b1625;
+  border-radius:10px; border:1px solid rgba(255,255,255,.06); font-size:14px}
+.sel select{background:#0b1625; color:var(--txt); border:0; outline:none}
+.micbar{display:flex; gap:8px; margin-inline-start:auto}
+.micbar button{padding:10px 14px; border:0; border-radius:10px; background:#122235; color:var(--txt); cursor:pointer}
+.micbar button:disabled{opacity:.6; cursor:not-allowed}
 
 .ask{
   display:flex; gap:10px; align-items:center;
