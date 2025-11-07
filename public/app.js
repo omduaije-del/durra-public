@@ -1,77 +1,42 @@
-// ===== إعداد عنوان السيرفر على Render =====
-const API_URL = "https://durra-server.onrender.com";
+// عدلّي هذا لو كان اسم خدمة السيرفر مختلف
+const API_BASE = "https://durra-server.onrender.com";
 
-// ===== دالة عامة للطلب =====
-async function askDurra(question, opts = {}) {
-  const payload = { question, ...opts };
-  const res = await fetch(`${API_URL}/ask`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res.json();
-}
+const form = document.getElementById("askForm");
+const input = document.getElementById("question");
+const out = document.getElementById("answer");
 
-// ===== ربط سريع مع عناصر الصفحة لو كانت موجودة =====
-// يحاول تلقائيًا إيجاد فورم + خانة نص + مكان لعرض الإجابة
-(function wireUI() {
-  // محاولة إيجاد العناصر بأكثر من اسم شائع
-  const form =
-    document.querySelector("#askForm") ||
-    document.querySelector("form");
+form.addEventListener("submit", async (e) => {
+  e.preventDefault(); // يمنع تبديل الصفحة
+  const question = (input.value || "").trim();
 
-  const input =
-    document.querySelector("#question") ||
-    document.querySelector('textarea[name="question"]') ||
-    document.querySelector('input[name="question"]') ||
-    document.querySelector("textarea") ||
-    document.querySelector('input[type="text"]');
-
-  let answerBox =
-    document.querySelector("#answer") ||
-    document.querySelector(".answer");
-
-  // لو ما فيه صندوق لعرض الإجابة، نضيف واحد تحت الفورم
-  if (!answerBox && form) {
-    answerBox = document.createElement("div");
-    answerBox.id = "answer";
-    answerBox.style.marginTop = "12px";
-    form.parentNode.insertBefore(answerBox, form.nextSibling);
+  if (!question) {
+    out.textContent = "اكتبي سؤالك أولاً.";
+    return;
   }
 
-  if (!form || !input) return; // لا نكسر الصفحة لو أسماء العناصر مختلفة بالكامل
+  out.textContent = "جاري الإرسال…";
 
-  if (!form.dataset.bound) {
-    form.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const q = (input.value || "").trim();
-      if (!q) return;
-
-      if (answerBox) {
-        answerBox.textContent = "⏳ جاري المعالجة…";
-      }
-
-      try {
-        const data = await askDurra(q);
-        // توقّع جواب نصّي داخل data.answer أو data.result
-        const reply =
-          (data && (data.answer || data.result || data.message)) ||
-          JSON.stringify(data);
-
-        if (answerBox) {
-          answerBox.textContent = reply;
-        }
-      } catch (err) {
-        if (answerBox) {
-          answerBox.textContent =
-            "حدث خطأ أثناء الاتصال بالخادم. جرّبي لاحقًا.\n" + err.message;
-        }
-      }
+  try {
+    const res = await fetch(`${API_BASE}/ask`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question })
     });
-    form.dataset.bound = "1";
+
+    if (!res.ok) {
+      // حاول نقرأ رسالة الخطأ من السيرفر
+      let msg = `HTTP ${res.status}`;
+      try {
+        const j = await res.json();
+        if (j && j.error) msg = j.error;
+      } catch {}
+      throw new Error(msg);
+    }
+
+    const data = await res.json();
+    out.textContent = data.answer || "تم الاستلام ✅";
+  } catch (err) {
+    console.error(err);
+    out.textContent = "صار خطأ أثناء الإرسال. جرّبي مرة ثانية.";
   }
-})();
+});
