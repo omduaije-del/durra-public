@@ -13,14 +13,36 @@
         <img src="durra.png" alt="ذُرّى" />
       </div>
       <h1>ذُرّى — معلمة الرياضيات الذكية</h1>
-      <p class="sub">اكتبي سؤالك الرياضي واضغطي إرسال — يظهر الرد أسفل بدون تبديل الصفحة.</p>
+      <p class="sub">فقط عن الرياضيات — اطرحي سؤالك كتابيًا أو صوتيًا، ويمكنك سماع الإجابة اختياريًا.</p>
     </header>
 
+    <!-- خيارات الصوت -->
+    <section class="controls">
+      <label class="chk"><input id="voiceQuestion" type="checkbox" /> السؤال صوتي</label>
+      <label class="chk"><input id="voiceAnswer" type="checkbox" /> الإجابة صوتية</label>
+
+      <label class="sel">
+        لهجتي الصوتية:
+        <select id="langSelect">
+          <option value="ar-SA" selected>عربي (سعودي)</option>
+          <option value="ar-EG">عربي (مصري)</option>
+          <option value="en-US">English (US)</option>
+        </select>
+      </label>
+
+      <div class="micbar">
+        <button id="btnStart" type="button">🎙 ابدأ</button>
+        <button id="btnStop" type="button" disabled>⏹ إيقاف</button>
+      </div>
+    </section>
+
+    <!-- نموذج السؤال -->
     <form class="ask">
       <input id="textInput" type="text" placeholder="اكتبي سؤالك الرياضي هنا..." />
       <button type="submit">إرسال</button>
     </form>
 
+    <!-- النتيجة -->
     <section class="panel">
       <div id="answer" class="result"></div>
     </section>
