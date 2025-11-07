@@ -1,45 +1,51 @@
-// === Durra Frontend (نهائي) ===
-// نستخدم رابط السيرفر مباشرة لتفادي أي مشاكل Redirects
+// النسخة النهائية من الواجهة - ذُرّى
 const API_BASE = "https://durra-server.onrender.com";
 
-const form = document.querySelector("form");
-const input = document.querySelector("input");
-const out   = document.querySelector(".result") || document.getElementById("answer");
-const btn   = document.querySelector('button[type="submit"]');
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.querySelector("form");
+  const input = document.querySelector("input");
+  const output = document.querySelector(".result") || document.getElementById("answer");
+  const button = document.querySelector('button[type="submit"]');
 
-if (form) {
+  if (!form) return;
+
   form.addEventListener("submit", async (e) => {
-    e.preventDefault();                     // منع تبديل الصفحة
-    const question = (input?.value || "").trim();
-    if (!question) { if(out) out.textContent = "اكتبي سؤالك أولاً."; return; }
+    e.preventDefault();
 
-    if (btn) btn.disabled = true;
-    if (out) out.textContent = "⏳ جاري الإرسال…";
+    const question = input.value.trim();
+    if (!question) {
+      output.textContent = "اكتبي سؤالك أولاً 🌸";
+      return;
+    }
+
+    button.disabled = true;
+    output.textContent = "⏳ جاري التفكير...";
 
     try {
       const res = await fetch(`${API_BASE}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question })
+        body: JSON.stringify({ question }),
       });
 
-      const text = await res.text();        // نتعامل مع أي رد (JSON/نص)
-      let data; try { data = JSON.parse(text); } catch { data = { answer: text }; }
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { answer: text };
+      }
 
       if (res.ok && (data.answer || data.msg)) {
-        if (out) out.textContent = data.answer || data.msg;
+        output.textContent = data.answer || data.msg;
       } else {
-        const msg = (data && (data.error || data.message)) || `HTTP ${res.status}`;
-        if (out) out.textContent = "⚠️ " + msg;
+        output.textContent = "⚠️ لم يتم الرد، أعيدي المحاولة.";
       }
     } catch (err) {
-      if (out) out.textContent = "🚨 تعذّر الاتصال بالسيرفر.";
       console.error(err);
+      output.textContent = "🚨 تعذر الاتصال بالسيرفر.";
     } finally {
-      if (btn) btn.disabled = false;
+      button.disabled = false;
     }
   });
-}
-
-// حماية إضافية: لو كان عندك <form action="/ask"> نشيله نهائيًا
-if (form && form.getAttribute("action")) form.removeAttribute("action");
+});
