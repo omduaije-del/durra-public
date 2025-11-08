@@ -1,152 +1,450 @@
-// Robust front-end wiring for Durra
+// public/app.js
 
+// رابط الخادم
 const API_BASE = "https://durra-server.onrender.com";
 
-// ---------- helpers ----------
-const $ = (sel, root = document) => root.querySelector(sel);
-const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+// عناصر الواجهة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus");
 
-function pickOne(selectors) {
-  for (const s of selectors) {
-    const el = $(s);
-    if (el) return el;
+// دالة عرض النص في صندوق الإجابة
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
   }
-  return null;
 }
 
-// Try to find elements even if IDs/classnames differ
-const elForm = pickOne(["#form", "form"]);
-const elInput = pickOne([
-  "#textInput",
-  "textarea#textInput",
-  "textarea[name='question']",
-  "textarea[name='q']",
-  "textarea",
-  "input#textInput",
-  "input[name='question']",
-  "input[type='text']",
-  "input"
-]);
+// فحص اتصال الخادم
+async function ping() {
+  try {
+    if (!elStatus) return;
 
-let elSend = pickOne([
-  "#btnSend",
-  "[data-send]",
-  "button[type='submit']",
-  "button.send",
-  "button#send",
-  "button"
-]);
+    elStatus.textContent = "جارٍ فحص الاتصال…";
 
-let elMessages = pickOne(["#messages", ".messages", "#answer", ".answer"]);
-if (!elMessages) {
-  // Create a simple messages panel if page doesn't have one
-  const holder = document.createElement("div");
-  holder.id = "messages";
-  holder.style.cssText =
-    "max-height:280px; overflow:auto; padding:10px; border:1px solid #444; border-radius:10px; background:#0c0f14; color:#eee; margin-top:10px; font-size:16px; line-height:1.6;";
-  (elForm || document.body).appendChild(holder);
-  elMessages = holder;
+    const r = await fetch(API_BASE + "/health", { cache: "no-store" });
+    const j = await r.json();
+
+    elStatus.textContent =
+      j && j.status === "server running" ? "✅ متصل" : "⚠️ غير متصل";
+  } catch (err) {
+    console.error("PING_ERROR:", err);
+    if (elStatus) elStatus.textContent = "⚠️ غير متصل";
+  }
 }
 
-function addMessage(text, who = "assistant") {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.style.margin = "8px 0";
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
-}
+// إرسال السؤال إلى /api/chat
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك أولاً…");
+    return;
+  }
 
-function getQuestion() {
-  const v = (elInput && elInput.value) || "";
-  return (v || "").trim();
-}
-
-// ---------- core ----------
-async function askRaw(message) {
-  const q = (message || getQuestion()).trim();
-  if (!q) return;
-
-  // show user message
-  addMessage(q, "user");
-  if (elInput) elInput.value = "";
-
-  // thinking
-  const thinking = document.createElement("div");
-  thinking.textContent = "… جاري التفكير";
-  thinking.style.opacity = "0.8";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
+  show("… جاري التفكير");
 
   try {
-    console.log("[ASK] POST", `${API_BASE}/api/chat`, q);
-    const res = await fetch(`${API_BASE}/api/chat`, {
+    const res = await fetch(API_BASE + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: q })
+      body: JSON.stringify({
+        message: question,
+        history: [] // بدون محادثة سابقة الآن
+      }),
     });
 
-    const data = await res.json().catch(() => ({}));
-    thinking.remove();
-
     if (!res.ok) {
-      console.error("HTTP_ERROR", res.status, data);
-      addMessage(`⚠ خطأ من الخادم (${res.status}).`, "assistant");
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("⚠️ خطأ من الخادم (HTTP " + res.status + ")");
       return;
     }
 
-    const reply = (data && (data.reply || data.answer || data.text)) || "";
-    if (reply) {
-      addMessage(reply, "assistant");
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
-    }
+    const data = await res.json();
+    // السيرفر يرجع { reply: "النص" }
+    show((data && data.reply) || "ما وصلت إجابة من الخادم.");
+
   } catch (err) {
-    thinking.remove();
-    console.error("ASK_EXCEPTION", err);
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+    console.error("ASK_ERROR:", err);
+    show("⚠️ صار خطأ بالاتصال، جربي مرة ثانية.");
   }
 }
 
-// ---------- wiring (button / form / Enter) ----------
-function wire() {
-  // If we have a form, intercept submit
-  if (elForm) {
-    elForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      askRaw();
-    });
-  }
-
-  // If we have a dedicated send button, ensure it's type=button to stop page reloads
-  if (elSend) {
-    try { if (elSend.getAttribute("type") !== "button") elSend.setAttribute("type", "button"); } catch (_) {}
-    elSend.addEventListener("click", () => askRaw());
-  }
-
-  // Hitting Enter in input sends too
-  if (elInput) {
-    elInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) {
-        e.preventDefault();
-        askRaw();
-      }
-    });
-  }
-
-  console.log("[WIRE] form:", !!elForm, "input:", !!elInput, "send:", !!elSend, "messages:", !!elMessages);
+// ربط زر الإرسال
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    ask(elInput ? elInput.value : "");
+  });
 }
 
+// الإرسال بزر Enter
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      ask(elInput.value);
+    }
+  });
+}
+
+// تشغيل فحص الاتصال أول ما تفتح الصفحة
+ping();
+// public/app.js
+
+// رابط الخادم
+const API_BASE = "https://durra-server.onrender.com";
+
+// عناصر الواجهة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus");
+
+// دالة عرض النص في صندوق الإجابة
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
+}
+
+// فحص اتصال الخادم
 async function ping() {
   try {
-    const r = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    if (!elStatus) return;
+
+    elStatus.textContent = "جارٍ فحص الاتصال…";
+
+    const r = await fetch(API_BASE + "/health", { cache: "no-store" });
     const j = await r.json();
-    console.log("[PING]", j);
-  } catch (e) {
-    console.warn("[PING_ERROR]", e);
+
+    elStatus.textContent =
+      j && j.status === "server running" ? "✅ متصل" : "⚠️ غير متصل";
+  } catch (err) {
+    console.error("PING_ERROR:", err);
+    if (elStatus) elStatus.textContent = "⚠️ غير متصل";
   }
 }
 
-wire();
+// إرسال السؤال إلى /api/chat
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك أولاً…");
+    return;
+  }
+
+  show("… جاري التفكير");
+
+  try {
+    const res = await fetch(API_BASE + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: question,
+        history: [] // بدون محادثة سابقة الآن
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("⚠️ خطأ من الخادم (HTTP " + res.status + ")");
+      return;
+    }
+
+    const data = await res.json();
+    // السيرفر يرجع { reply: "النص" }
+    show((data && data.reply) || "ما وصلت إجابة من الخادم.");
+
+  } catch (err) {
+    console.error("ASK_ERROR:", err);
+    show("⚠️ صار خطأ بالاتصال، جربي مرة ثانية.");
+  }
+}
+
+// ربط زر الإرسال
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    ask(elInput ? elInput.value : "");
+  });
+}
+
+// الإرسال بزر Enter
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      ask(elInput.value);
+    }
+  });
+}
+
+// تشغيل فحص الاتصال أول ما تفتح الصفحة
+ping();
+// public/app.js
+
+// رابط الخادم
+const API_BASE = "https://durra-server.onrender.com";
+
+// عناصر الواجهة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus");
+
+// دالة عرض النص في صندوق الإجابة
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
+}
+
+// فحص اتصال الخادم
+async function ping() {
+  try {
+    if (!elStatus) return;
+
+    elStatus.textContent = "جارٍ فحص الاتصال…";
+
+    const r = await fetch(API_BASE + "/health", { cache: "no-store" });
+    const j = await r.json();
+
+    elStatus.textContent =
+      j && j.status === "server running" ? "✅ متصل" : "⚠️ غير متصل";
+  } catch (err) {
+    console.error("PING_ERROR:", err);
+    if (elStatus) elStatus.textContent = "⚠️ غير متصل";
+  }
+}
+
+// إرسال السؤال إلى /api/chat
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك أولاً…");
+    return;
+  }
+
+  show("… جاري التفكير");
+
+  try {
+    const res = await fetch(API_BASE + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: question,
+        history: [] // بدون محادثة سابقة الآن
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("⚠️ خطأ من الخادم (HTTP " + res.status + ")");
+      return;
+    }
+
+    const data = await res.json();
+    // السيرفر يرجع { reply: "النص" }
+    show((data && data.reply) || "ما وصلت إجابة من الخادم.");
+
+  } catch (err) {
+    console.error("ASK_ERROR:", err);
+    show("⚠️ صار خطأ بالاتصال، جربي مرة ثانية.");
+  }
+}
+
+// ربط زر الإرسال
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    ask(elInput ? elInput.value : "");
+  });
+}
+
+// الإرسال بزر Enter
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      ask(elInput.value);
+    }
+  });
+}
+
+// تشغيل فحص الاتصال أول ما تفتح الصفحة
+ping();
+// public/app.js
+
+// رابط الخادم
+const API_BASE = "https://durra-server.onrender.com";
+
+// عناصر الواجهة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus");
+
+// دالة عرض النص في صندوق الإجابة
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
+}
+
+// فحص اتصال الخادم
+async function ping() {
+  try {
+    if (!elStatus) return;
+
+    elStatus.textContent = "جارٍ فحص الاتصال…";
+
+    const r = await fetch(API_BASE + "/health", { cache: "no-store" });
+    const j = await r.json();
+
+    elStatus.textContent =
+      j && j.status === "server running" ? "✅ متصل" : "⚠️ غير متصل";
+  } catch (err) {
+    console.error("PING_ERROR:", err);
+    if (elStatus) elStatus.textContent = "⚠️ غير متصل";
+  }
+}
+
+// إرسال السؤال إلى /api/chat
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك أولاً…");
+    return;
+  }
+
+  show("… جاري التفكير");
+
+  try {
+    const res = await fetch(API_BASE + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: question,
+        history: [] // بدون محادثة سابقة الآن
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("⚠️ خطأ من الخادم (HTTP " + res.status + ")");
+      return;
+    }
+
+    const data = await res.json();
+    // السيرفر يرجع { reply: "النص" }
+    show((data && data.reply) || "ما وصلت إجابة من الخادم.");
+
+  } catch (err) {
+    console.error("ASK_ERROR:", err);
+    show("⚠️ صار خطأ بالاتصال، جربي مرة ثانية.");
+  }
+}
+
+// ربط زر الإرسال
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    ask(elInput ? elInput.value : "");
+  });
+}
+
+// الإرسال بزر Enter
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      ask(elInput.value);
+    }
+  });
+}
+
+// تشغيل فحص الاتصال أول ما تفتح الصفحة
+ping();
+// public/app.js
+
+// رابط الخادم
+const API_BASE = "https://durra-server.onrender.com";
+
+// عناصر الواجهة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus");
+
+// دالة عرض النص في صندوق الإجابة
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
+}
+
+// فحص اتصال الخادم
+async function ping() {
+  try {
+    if (!elStatus) return;
+
+    elStatus.textContent = "جارٍ فحص الاتصال…";
+
+    const r = await fetch(API_BASE + "/health", { cache: "no-store" });
+    const j = await r.json();
+
+    elStatus.textContent =
+      j && j.status === "server running" ? "✅ متصل" : "⚠️ غير متصل";
+  } catch (err) {
+    console.error("PING_ERROR:", err);
+    if (elStatus) elStatus.textContent = "⚠️ غير متصل";
+  }
+}
+
+// إرسال السؤال إلى /api/chat
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك أولاً…");
+    return;
+  }
+
+  show("… جاري التفكير");
+
+  try {
+    const res = await fetch(API_BASE + "/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: question,
+        history: [] // بدون محادثة سابقة الآن
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("⚠️ خطأ من الخادم (HTTP " + res.status + ")");
+      return;
+    }
+
+    const data = await res.json();
+    // السيرفر يرجع { reply: "النص" }
+    show((data && data.reply) || "ما وصلت إجابة من الخادم.");
+
+  } catch (err) {
+    console.error("ASK_ERROR:", err);
+    show("⚠️ صار خطأ بالاتصال، جربي مرة ثانية.");
+  }
+}
+
+// ربط زر الإرسال
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    ask(elInput ? elInput.value : "");
+  });
+}
+
+// الإرسال بزر Enter
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      ask(elInput.value);
+    }
+  });
+}
+
+// تشغيل فحص الاتصال أول ما تفتح الصفحة
 ping();
