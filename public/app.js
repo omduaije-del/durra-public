@@ -54,9 +54,34 @@ function addMessage(text, who = "assistant") {
   elMessages.scrollTop = elMessages.scrollHeight;
 }
 
-// دالة تعرض نص عادي (مثلاً للأخطاء)
+// ============== دالة تنظيف النص ==============
+function cleanText(text) {
+  if (!text) return "";
+
+  return text
+    // نزيل علامات الماث والـ Markdown الزايدة
+    .replace(/\$\$/g, "")
+    .replace(/\$/g, "")
+    .replace(/\*\*/g, "")
+    .replace(/`/g, "")
+    .replace(/_/g, " ")
+    // نحذف أو نلطف أوامر لاتِك كثير
+    .replace(/\\frac/g, " كسر ")
+    .replace(/\\sqrt/g, " جذر ")
+    .replace(/\\cdot/g, " × ")
+    .replace(/\\pm/g, " ± ")
+    .replace(/\\left/g, "")
+    .replace(/\\right/g, "")
+    .replace(/\\\(/g, "")
+    .replace(/\\\)/g, "");
+}
+
+// ============== دالة عرض النص ==============
 function show(text) {
-  addMessage(text, "assistant");
+  const clean = cleanText(text);
+  if (elAnswer) {
+    elAnswer.textContent = clean;
+  }
 }
 
 // نحاول نفحص اتصال الخادم (اختياري)
