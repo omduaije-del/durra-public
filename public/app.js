@@ -243,3 +243,71 @@ function wire() {
 
 wire();
 pingOnce();
+// ==== ملحق آمن: "الإجابة الصوتية + زر إيقاف" (لا يلمس الكود الأساسي) ====
+(function(){
+  if (!('speechSynthesis' in window)) return;
+
+  let enabled = JSON.parse(localStorage.getItem('durra_tts_on') || 'false');
+  let voices = [];
+  let currentVoice = null;
+  let lastUtter = null;
+
+  function chooseVoice() {
+    voices = speechSynthesis.getVoices();
+    const ar = voices.filter(v => (v.lang||'').toLowerCase().startsWith('ar'));
+    currentVoice = ar[0] || voices.find(v => /arabic/i.test(v.name)) || null;
+  }
+  chooseVoice();
+  window.speechSynthesis.onvoiceschanged = chooseVoice;
+
+  // أزرار طافية فوق الصفحة (لا تغيّر الستايل الأساسي)
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;gap:8px;z-index:99999';
+  const btnToggle = document.createElement('button');
+  btnToggle.textContent = enabled ? '🔊 صوت الإجابة: شغّال' : '🔈 صوت الإجابة: مطفي';
+  btnToggle.style.cssText = 'padding:8px 12px;border-radius:999px;border:none;background:#1f3b70;color:#fff;cursor:pointer;font-size:14px';
+  const btnStop = document.createElement('button');
+  btnStop.textContent = '⏹ إيقاف';
+  btnStop.style.cssText = 'padding:8px 12px;border-radius:999px;border:none;background:#6b1f1f;color:#fff;cursor:pointer;font-size:14px';
+  box.append(btnToggle, btnStop);
+  document.body.appendChild(box);
+
+  btnToggle.addEventListener('click', ()=>{
+    enabled = !enabled;
+    localStorage.setItem('durra_tts_on', JSON.stringify(enabled));
+    btnToggle.textContent = enabled ? '🔊 صوت الإجابة: شغّال' : '🔈 صوت الإجابة: مطفي';
+    if (!enabled) try { speechSynthesis.cancel(); } catch(e){}
+  });
+  btnStop.addEventListener('click', ()=>{
+    try { speechSynthesis.cancel(); } catch(e){}
+  });
+
+  function speak(text){
+    if (!enabled) return;
+    try {
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = (currentVoice && currentVoice.lang) || 'ar-SA';
+      if (currentVoice) u.voice = currentVoice;
+      u.rate = 1;
+      u.pitch = 1;
+      lastUtter = u;
+      speechSynthesis.speak(u);
+    } catch(e) { console.warn('TTS error', e); }
+  }
+
+  // مراقبة أي رسالة "assistant" جديدة والنطق تلقائيًا
+  const target = (typeof elMessages !== 'undefined' && elMessages) ? elMessages : document.body;
+  const observer = new MutationObserver((mut)=> {
+    for (const m of mut) {
+      m.addedNodes && m.addedNodes.forEach(node=>{
+        if (!(node instanceof HTMLElement)) return;
+        if (node.classList && node.classList.contains('message') && node.classList.contains('assistant')) {
+          const text = node.textContent || '';
+          if (text.trim()) speak(text.trim());
+        }
+      });
+    }
+  });
+  observer.observe(target, { childList:true, subtree:true });
+})();
