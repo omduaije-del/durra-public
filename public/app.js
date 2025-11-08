@@ -1,528 +1,470 @@
-const API_BASE = "https://durra-server.onrender.com";
+// public/app.js
 
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
+// ================== الإعدادات ==================
+const API_BASE = "https://durra-server.onrender.com"; // عدّليها إذا اسم خدمتك مختلف
 
-let history = [];
+// عناصر الصفحة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus"); // اختياري لو موجود
 
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
-}
-
-// دالة إرسال السؤال إلى السيرفر
-async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
-
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
-
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
-
+// ============== فحص اتصال الخادم ==============
+async function ping() {
   try {
-    const resp = await fetch(API_BASE + "/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
-    });
+    const r = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    const j = await r.json();
 
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
+    if (elStatus) {
+      elStatus.textContent =
+        j && j.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
     }
+
+    return true;
   } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+    if (elStatus) {
+      elStatus.textContent = "غير متصل ⚠";
+    }
+    console.error("PING_ERROR:", err);
+    return false;
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
-  });
-}
-const API_BASE = "https://durra-server.onrender.com";
-
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
-
-let history = [];
-
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
-}
-
-// دالة إرسال السؤال إلى السيرفر
+// ============== إرسال السؤال ==============
 async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك…");
+    return;
+  }
 
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
-
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
+  show("…أفكّر بالإجابة");
 
   try {
-    const resp = await fetch(API_BASE + "/api/chat", {
+    const res = await fetch(`${API_BASE}/ask`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: question }),
     });
 
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("صار خطأ في الخادم، جرّبي مرة ثانية.");
+      return;
     }
+
+    const data = await res.json();
+    show((data && data.answer) || "ما وصلت إجابة من الخادم.");
   } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+    console.error("ASK_ERROR:", err);
+    show("صار خطأ بالاتصال، جرّبي ثانية.");
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
-  });
-}
-const API_BASE = "https://durra-server.onrender.com";
-
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
-
-let history = [];
-
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
-}
-
-// دالة إرسال السؤال إلى السيرفر
-async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
-
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
-
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
-
-  try {
-    const resp = await fetch(API_BASE + "/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
-    });
-
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
-    }
-  } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+// ============== أدوات صغيرة ==============
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
+// أحداث الواجهة
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    if (!elInput) return;
+    const q = elInput.value;
+    elInput.value = "";
+    ask(q);
   });
 }
-const API_BASE = "https://durra-server.onrender.com";
 
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
-
-let history = [];
-
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const q = elInput.value;
+      elInput.value = "";
+      ask(q);
+    }
+  });
 }
 
-// دالة إرسال السؤال إلى السيرفر
-async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
+// تشغيل أولي
+ping();
+// public/app.js
 
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
+// ================== الإعدادات ==================
+const API_BASE = "https://durra-server.onrender.com"; // عدّليها إذا اسم خدمتك مختلف
 
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
+// عناصر الصفحة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus"); // اختياري لو موجود
 
+// ============== فحص اتصال الخادم ==============
+async function ping() {
   try {
-    const resp = await fetch(API_BASE + "/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
-    });
+    const r = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    const j = await r.json();
 
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
+    if (elStatus) {
+      elStatus.textContent =
+        j && j.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
     }
+
+    return true;
   } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+    if (elStatus) {
+      elStatus.textContent = "غير متصل ⚠";
+    }
+    console.error("PING_ERROR:", err);
+    return false;
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
-  });
-}
-const API_BASE = "https://durra-server.onrender.com";
-
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
-
-let history = [];
-
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
-}
-
-// دالة إرسال السؤال إلى السيرفر
+// ============== إرسال السؤال ==============
 async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك…");
+    return;
+  }
 
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
-
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
+  show("…أفكّر بالإجابة");
 
   try {
-    const resp = await fetch(API_BASE + "/api/chat", {
+    const res = await fetch(`${API_BASE}/ask`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: question }),
     });
 
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("صار خطأ في الخادم، جرّبي مرة ثانية.");
+      return;
     }
+
+    const data = await res.json();
+    show((data && data.answer) || "ما وصلت إجابة من الخادم.");
   } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+    console.error("ASK_ERROR:", err);
+    show("صار خطأ بالاتصال، جرّبي ثانية.");
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
-  });
-}
-const API_BASE = "https://durra-server.onrender.com";
-
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
-
-let history = [];
-
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
-}
-
-// دالة إرسال السؤال إلى السيرفر
-async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
-
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
-
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
-
-  try {
-    const resp = await fetch(API_BASE + "/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
-    });
-
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
-    }
-  } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+// ============== أدوات صغيرة ==============
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
+// أحداث الواجهة
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    if (!elInput) return;
+    const q = elInput.value;
+    elInput.value = "";
+    ask(q);
   });
 }
-const API_BASE = "https://durra-server.onrender.com";
 
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
-
-let history = [];
-
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const q = elInput.value;
+      elInput.value = "";
+      ask(q);
+    }
+  });
 }
 
-// دالة إرسال السؤال إلى السيرفر
-async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
+// تشغيل أولي
+ping();
+// public/app.js
 
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
+// ================== الإعدادات ==================
+const API_BASE = "https://durra-server.onrender.com"; // عدّليها إذا اسم خدمتك مختلف
 
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
+// عناصر الصفحة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus"); // اختياري لو موجود
 
+// ============== فحص اتصال الخادم ==============
+async function ping() {
   try {
-    const resp = await fetch(API_BASE + "/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
-    });
+    const r = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    const j = await r.json();
 
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
+    if (elStatus) {
+      elStatus.textContent =
+        j && j.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
     }
+
+    return true;
   } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+    if (elStatus) {
+      elStatus.textContent = "غير متصل ⚠";
+    }
+    console.error("PING_ERROR:", err);
+    return false;
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
-  });
-}
-const API_BASE = "https://durra-server.onrender.com";
-
-// عناصر الواجهة
-const elForm = document.getElementById("form");
-const elInput = document.getElementById("textInput");
-const elMessages = document.getElementById("messages");
-
-let history = [];
-
-// دالة لإضافة رسالة في صندوق المحادثة
-function addMessage(text, who) {
-  if (!elMessages) return;
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.textContent = text;
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
-}
-
-// دالة إرسال السؤال إلى السيرفر
+// ============== إرسال السؤال ==============
 async function ask(question) {
-  const message = (question || "").trim();
-  if (!message) return;
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك…");
+    return;
+  }
 
-  // عرض رسالة المستخدم
-  addMessage(message, "user");
-  if (elInput) elInput.value = "";
-
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
+  show("…أفكّر بالإجابة");
 
   try {
-    const resp = await fetch(API_BASE + "/api/chat", {
+    const res = await fetch(`${API_BASE}/ask`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, history }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: question }),
     });
 
-    const data = await resp.json().catch(() => ({}));
-    thinking.remove();
-
-    if (data && data.reply) {
-      addMessage(data.reply, "assistant");
-      history.push({ user: message, assistant: data.reply });
-    } else {
-      addMessage("عذرًا، لم أتلقَّ إجابة.", "assistant");
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("صار خطأ في الخادم، جرّبي مرة ثانية.");
+      return;
     }
+
+    const data = await res.json();
+    show((data && data.answer) || "ما وصلت إجابة من الخادم.");
   } catch (err) {
-    console.error(err);
-    thinking.remove();
-    addMessage("حدث خطأ في الاتصال بالخادم.", "assistant");
+    console.error("ASK_ERROR:", err);
+    show("صار خطأ بالاتصال، جرّبي ثانية.");
   }
 }
 
-// ربط زر الإرسال (النموذج) بالدالة
-if (elForm && elInput) {
-  elForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    const text = elInput.value;
-    ask(text);
+// ============== أدوات صغيرة ==============
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
+}
+
+// أحداث الواجهة
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    if (!elInput) return;
+    const q = elInput.value;
+    elInput.value = "";
+    ask(q);
   });
 }
+
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const q = elInput.value;
+      elInput.value = "";
+      ask(q);
+    }
+  });
+}
+
+// تشغيل أولي
+ping();
+// public/app.js
+
+// ================== الإعدادات ==================
+const API_BASE = "https://durra-server.onrender.com"; // عدّليها إذا اسم خدمتك مختلف
+
+// عناصر الصفحة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus"); // اختياري لو موجود
+
+// ============== فحص اتصال الخادم ==============
+async function ping() {
+  try {
+    const r = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    const j = await r.json();
+
+    if (elStatus) {
+      elStatus.textContent =
+        j && j.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
+    }
+
+    return true;
+  } catch (err) {
+    if (elStatus) {
+      elStatus.textContent = "غير متصل ⚠";
+    }
+    console.error("PING_ERROR:", err);
+    return false;
+  }
+}
+
+// ============== إرسال السؤال ==============
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك…");
+    return;
+  }
+
+  show("…أفكّر بالإجابة");
+
+  try {
+    const res = await fetch(`${API_BASE}/ask`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: question }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("صار خطأ في الخادم، جرّبي مرة ثانية.");
+      return;
+    }
+
+    const data = await res.json();
+    show((data && data.answer) || "ما وصلت إجابة من الخادم.");
+  } catch (err) {
+    console.error("ASK_ERROR:", err);
+    show("صار خطأ بالاتصال، جرّبي ثانية.");
+  }
+}
+
+// ============== أدوات صغيرة ==============
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
+}
+
+// أحداث الواجهة
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    if (!elInput) return;
+    const q = elInput.value;
+    elInput.value = "";
+    ask(q);
+  });
+}
+
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const q = elInput.value;
+      elInput.value = "";
+      ask(q);
+    }
+  });
+}
+
+// تشغيل أولي
+ping();
+// public/app.js
+
+// ================== الإعدادات ==================
+const API_BASE = "https://durra-server.onrender.com"; // عدّليها إذا اسم خدمتك مختلف
+
+// عناصر الصفحة
+const elInput  = document.getElementById("textInput");
+const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus"); // اختياري لو موجود
+
+// ============== فحص اتصال الخادم ==============
+async function ping() {
+  try {
+    const r = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    const j = await r.json();
+
+    if (elStatus) {
+      elStatus.textContent =
+        j && j.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
+    }
+
+    return true;
+  } catch (err) {
+    if (elStatus) {
+      elStatus.textContent = "غير متصل ⚠";
+    }
+    console.error("PING_ERROR:", err);
+    return false;
+  }
+}
+
+// ============== إرسال السؤال ==============
+async function ask(question) {
+  if (!question || !question.trim()) {
+    show("اكتبي سؤالك…");
+    return;
+  }
+
+  show("…أفكّر بالإجابة");
+
+  try {
+    const res = await fetch(`${API_BASE}/ask`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ question: question }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("صار خطأ في الخادم، جرّبي مرة ثانية.");
+      return;
+    }
+
+    const data = await res.json();
+    show((data && data.answer) || "ما وصلت إجابة من الخادم.");
+  } catch (err) {
+    console.error("ASK_ERROR:", err);
+    show("صار خطأ بالاتصال، جرّبي ثانية.");
+  }
+}
+
+// ============== أدوات صغيرة ==============
+function show(text) {
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
+}
+
+// أحداث الواجهة
+if (elSend) {
+  elSend.addEventListener("click", function () {
+    if (!elInput) return;
+    const q = elInput.value;
+    elInput.value = "";
+    ask(q);
+  });
+}
+
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      const q = elInput.value;
+      elInput.value = "";
+      ask(q);
+    }
+  });
+}
+
+// تشغيل أولي
+ping();
