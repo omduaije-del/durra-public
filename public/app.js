@@ -1,23 +1,30 @@
 // public/app.js
 
 // ================== الإعدادات ==================
-const API_BASE = "https://durra-server.onrender.com"; // عدّليها إذا اسم خدمتك مختلف
+const API_BASE = "https://durra-server.onrender.com"; // عدّليها لو رابط خدمتك مختلف
 
-// عناصر الصفحة
-const elInput   = document.getElementById("textInput");
-const elSend    = document.getElementById("btnSend") || document.querySelector("[data-send]");
-const elAnswer  = document.getElementById("answer");
-const elStatus  = document.getElementById("serverStatus"); // اختياري لو موجود
+// ================== عناصر الصفحة ==================
+const elInput = document.getElementById("textInput");
+const elSend =
+  document.getElementById("btnSend") || document.querySelector("[data-send]");
+const elAnswer = document.getElementById("answer");
+const elStatus = document.getElementById("serverStatus"); // اختياري لو موجود
 
 // ============== فحص اتصال الخادم ==============
 async function ping() {
   try {
-    const r = await fetch(${API_BASE}/health, { cache: "no-store" });
+    const r = await fetch(API_BASE + "/health", { cache: "no-store" });
     const j = await r.json();
-    if (elStatus) elStatus.textContent = j?.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
+
+    if (elStatus) {
+      elStatus.textContent =
+        j && j.status === "server running" ? "متصل ✅" : "غير متصل ⚠";
+    }
+
     return true;
-  } catch {
+  } catch (err) {
     if (elStatus) elStatus.textContent = "غير متصل ⚠";
+    console.error("PING_ERROR:", err);
     return false;
   }
 }
@@ -30,40 +37,50 @@ async function ask(question) {
   }
 
   show("…أفكّر بالإجابة");
+
   try {
-    const res = await fetch(${API_BASE}/ask, {
+    const res = await fetch(API_BASE + "/ask", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question })
+      body: JSON.stringify({ question: question }),
     });
 
     if (!res.ok) {
-      const txt = await res.text().catch(()=> "");
-      throw new Error(HTTP ${res.status} ${txt});
+      const txt = await res.text().catch(() => "");
+      console.error("HTTP_ERROR:", res.status, txt);
+      show("صار خطأ في الخادم، جرّبي مرة ثانية.");
+      return;
     }
 
     const data = await res.json();
-    show(data?.answer || "ما وصلت إجابة من الخادم.");
+    show((data && data.answer) || "ما وصلت إجابة من الخادم.");
   } catch (err) {
-    show("صار خطأ بالاتصال. جرّبي ثانية.");
     console.error("ASK_ERROR:", err);
+    show("صار خطأ بالاتصال، جرّبي ثانية.");
   }
 }
 
-// ============== أدوات صغيرة ==============
+// ============== دالة عرض النص ==============
 function show(text) {
-  if (elAnswer) elAnswer.textContent = text;
+  if (elAnswer) {
+    elAnswer.textContent = text;
+  }
 }
 
-// أحداث الواجهة
+// ============== الأحداث (الأزرار ولوحة المفاتيح) ==============
 if (elSend) {
-  elSend.addEventListener("click", () => ask(elInput.value));
-}
-if (elInput) {
-  elInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") ask(elInput.value);
+  elSend.addEventListener("click", function () {
+    ask(elInput.value);
   });
 }
 
-// تشغيل أولي
+if (elInput) {
+  elInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      ask(elInput.value);
+    }
+  });
+}
+
+// ============== تشغيل أولي ==============
 ping();
