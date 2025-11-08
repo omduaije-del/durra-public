@@ -1,93 +1,173 @@
-// public/app.js
+const API_BASE = 'https://durra-server.onrender.com';
 
-// ================== الإعدادات ==================
-const API_BASE = "https://durra-server.onrender.com"; // رابط الخادم
-const CHAT_PATH = "/ask"; // مسار السؤال في الخادم (لو تغيّر نعدله هنا فقط)
 
-// ================== عناصر الصفحة ==================
-const elInput  = document.getElementById("textInput");
-const elSend   = document.getElementById("btnSend") || document.querySelector("[data-send]");
-const elAnswer = document.getElementById("answer");
-const elStatus = document.getElementById("serverStatus"); // اختياري لو موجود
+/* واجهة دُرى */
+const elMessages   = document.getElementById('messages');
+const elForm       = document.getElementById('form');
+const elInput      = document.getElementById('textInput');
+const elBtnMic     = document.getElementById('btnMic');
+const elBtnStop    = document.getElementById('btnStop');
+const elVoiceQ     = document.getElementById('voiceQuestion');
+const elVoiceA     = document.getElementById('voiceAnswer');
+const elVoiceSelect= document.getElementById('voiceSelect');
 
-// ================== فحص اتصال الخادم ==================
-async function ping() {
-  try {
-    const r = await fetch(API_BASE + "/health", { cache: "no-store" });
-    const j = await r.json();
+/* إعدادات الصوت */
+let currentVoice = null;
 
-    if (elStatus) {
-      elStatus.textContent =
-        j && j.status === "server running" ? "✅ متصل" : "⚠️ غير متصل";
-    }
-
-    return true;
-  } catch (err) {
-    if (elStatus) elStatus.textContent = "⚠️ غير متصل";
-    console.error("PING_ERROR:", err);
-    return false;
-  }
+function toArabicIndicDigits(str){
+  return str.replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
 }
 
-// ================== دالة عرض النص ==================
-function show(text) {
-  if (!elAnswer) return;
-
-  // لو عندك صندوق محادثة، تقدرين تغيّرين هالجزء لاحقًا
-  elAnswer.textContent = text;
+function addMessage(text, who='assistant'){
+  const div = document.createElement('div');
+  div.className = 'message ' + who;
+  div.textContent = text;
+  elMessages.appendChild(div);
+  elMessages.scrollTop = elMessages.scrollHeight;
 }
 
-// ================== إرسال السؤال ==================
-async function ask(question) {
-  if (!question || !question.trim()) {
-    show("اكتبي سؤالك الرياضي…");
-    return;
+/* تشجيع بسيط */
+function cheer(){
+  // ممكن تضيفي أي حركة بسيطة هنا لو حبيتي
+}
+
+/* إعداد الأصوات المتاحة */
+function fillVoices(){
+  const voices = speechSynthesis.getVoices();
+  elVoiceSelect.innerHTML = '';
+
+  const arabicVoices = voices.filter(v=> v.lang && v.lang.startsWith('ar'));
+  const list = arabicVoices.length ? arabicVoices : voices;
+
+  list.forEach(v=>{
+    const opt = document.createElement('option');
+    opt.value = v.name;
+    opt.textContent = `${v.name} (${v.lang})`;
+    elVoiceSelect.appendChild(opt);
+  });
+
+  const saved = localStorage.getItem('durra_voice_name');
+  if (saved){
+    const opt = [...elVoiceSelect.options].find(o=>o.value === saved);
+    if (opt) elVoiceSelect.value = saved;
   }
 
-  // رسالة مؤقتة
-  show("أفكر في حل سؤالك…");
+  pickVoice();
+}
 
-  try {
-    const res = await fetch(API_BASE + CHAT_PATH, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: question }),
+function pickVoice(){
+  const voices = speechSynthesis.getVoices();
+  const name = elVoiceSelect.value;
+  currentVoice = voices.find(v=>v.name === name) || null;
+}
+
+/* نطق عربي بسيط */
+function speakArabic(text){
+  if (!elVoiceA.checked) return;
+  if (!window.speechSynthesis) return;
+
+  const msg = new SpeechSynthesisUtterance(text);
+  msg.lang = 'ar-SA';
+  if (currentVoice) msg.voice = currentVoice;
+  msg.rate = 1;
+  msg.pitch = 1;
+  speechSynthesis.speak(msg);
+}
+
+/* إرسال للخادم */
+async function askGPT(text){
+  const safe = toArabicIndicDigits(text);
+  addMessage(safe,'user'); elInput.value=''; cheer();
+
+  const thinking = document.createElement('div');
+  thinking.className='message assistant'; thinking.textContent='… جاري التفكير';
+  elMessages.appendChild(thinking); elMessages.scrollTop=elMessages.scrollHeight;
+
+  try{
+    const resp = await fetch(API_BASE + '/ask',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ question: safe })
     });
+    const data = await resp.json();
+    thinking.remove();
 
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      console.error("HTTP_ERROR:", res.status, txt);
-      show(`صار خطأ من الخادم (${res.status}).`);
-      return;
-    }
-
-    const data = await res.json().catch(() => null);
-
-    if (data && data.answer) {
-      show(data.answer);
-    } else {
-      show("ما وصلت إجابة واضحة من الخادم.");
-    }
-  } catch (err) {
-    console.error("ASK_ERROR:", err);
-    show("صار خطأ بالاتصال، جربي مرة ثانية.");
+    if (data && data.answer){
+      addMessage(data.answer,'assistant'); speakArabic(data.answer);
+      history.push({ user: safe, assistant: data.answer });
+    } else if (data && data.error){
+      addMessage('⚠ ' + data.error,'assistant');
+    } else addMessage('عذرًا، لم أتلقَّ إجابة.','assistant');
+  }catch(e){
+    thinking.remove();
+    addMessage('حدث خطأ في الاتصال بالخادم.','assistant');
   }
 }
 
-// ================== الأحداث (الأزرار ولوحة المفاتيح) ==================
-if (elSend) {
-  elSend.addEventListener("click", function () {
-    ask(elInput ? elInput.value : "");
-  });
-}
+/* نموذج الإرسال */
+elForm.addEventListener('submit',(e)=>{
+  e.preventDefault();
+  const text = elInput.value.trim();
+  if(!text) return;
+  askGPT(text);
+});
 
-if (elInput) {
-  elInput.addEventListener("keydown", function (e) {
-    if (e.key === "Enter") {
-      ask(elInput.value);
+/* إعداد المايك */
+let recognition = null;
+let isRecording = false;
+
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'ar-SA';
+  recognition.interimResults = false;
+
+  recognition.onresult = (event)=>{
+    const t = event.results[0][0].transcript || '';
+    if (elVoiceQ.checked){
+      elInput.value = t;
+      askGPT(t);
+    }else{
+      elInput.value = t;
     }
+  };
+
+  recognition.onend = ()=>{
+    isRecording = false;
+    if (elBtnMic) elBtnMic.disabled = false;
+    if (elBtnStop) elBtnStop.disabled = true;
+  };
+}
+
+if (elBtnMic){
+  elBtnMic.addEventListener('click',()=>{
+    if (!recognition || isRecording) return;
+    isRecording = true;
+    elBtnMic.disabled = true;
+    if (elBtnStop) elBtnStop.disabled = false;
+    recognition.start();
   });
 }
 
-// ================== تشغيل أولي ==================
-ping();
+if (elBtnStop){
+  elBtnStop.addEventListener('click',()=>{
+    if (!recognition) return;
+    recognition.stop();
+  });
+}
+
+/* تغيير الصوت المختار */
+if (window.speechSynthesis){
+  speechSynthesis.onvoiceschanged = fillVoices;
+  fillVoices();
+}
+
+elVoiceSelect?.addEventListener('change', ()=>{
+  localStorage.setItem('durra_voice_name', elVoiceSelect.value || '');
+  pickVoice();
+});
+
+/* قائمة محادثة بسيطة */
+const history = [];
+
+/* نهاية الملف */
