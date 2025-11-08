@@ -243,71 +243,130 @@ function wire() {
 
 wire();
 pingOnce();
-// ==== ملحق آمن: "الإجابة الصوتية + زر إيقاف" (لا يلمس الكود الأساسي) ====
-(function(){
-  if (!('speechSynthesis' in window)) return;
+// ==== ملحق آمن: "الإجابة الصوتية + زر إيقاف + اختيار صوت" (لا يلمس الكود الأساسي) ====
+(function () {
+  if (!("speechSynthesis" in window)) return;
 
-  let enabled = JSON.parse(localStorage.getItem('durra_tts_on') || 'false');
+  let enabled = JSON.parse(localStorage.getItem("durra_tts_on") || "false");
   let voices = [];
   let currentVoice = null;
   let lastUtter = null;
+  let voiceSelect = null;
+
+  function pickDefaultArabicFemale() {
+    const list = voices && voices.length ? voices : window.speechSynthesis.getVoices() || [];
+    if (!list.length) return null;
+
+    const arabic = list.filter(v =>
+      (v.lang || "").toLowerCase().startsWith("ar")
+    );
+
+    const femaleHints = [
+      "hoda", "zira", "laila", "layla", "leila", "layan", "female", "woman", "girl",
+      "أنث", "امرأة", "حورية", "بنت"
+    ];
+
+    let cand = null;
+    if (arabic.length) {
+      cand = arabic.find(v => {
+        const name = (v.name || "").toLowerCase();
+        return femaleHints.some(h => name.includes(h));
+      }) || arabic[0];
+    }
+    return cand || list[0] || null;
+  }
 
   function chooseVoice() {
-    voices = speechSynthesis.getVoices();
-    const ar = voices.filter(v => (v.lang||'').toLowerCase().startsWith('ar'));
-    currentVoice = ar[0] || voices.find(v => /arabic/i.test(v.name)) || null;
-  }
-  chooseVoice();
-  window.speechSynthesis.onvoiceschanged = chooseVoice;
+    voices = window.speechSynthesis.getVoices() || [];
+    if (!voices.length) return;
 
-  // أزرار طافية فوق الصفحة (لا تغيّر الستايل الأساسي)
-  const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;gap:8px;z-index:99999';
-  const btnToggle = document.createElement('button');
-  btnToggle.textContent = enabled ? '🔊 صوت الإجابة: شغّال' : '🔈 صوت الإجابة: مطفي';
-  btnToggle.style.cssText = 'padding:8px 12px;border-radius:999px;border:none;background:#1f3b70;color:#fff;cursor:pointer;font-size:14px';
-  const btnStop = document.createElement('button');
-  btnStop.textContent = '⏹ إيقاف';
-  btnStop.style.cssText = 'padding:8px 12px;border-radius:999px;border:none;background:#6b1f1f;color:#fff;cursor:pointer;font-size:14px';
-  box.append(btnToggle, btnStop);
+    const savedName = localStorage.getItem("durra_tts_voice") || "";
+
+    if (voiceSelect) {
+      const prev = voiceSelect.value || savedName;
+      voiceSelect.innerHTML = "";
+      voices.forEach(v => {
+        const opt = document.createElement("option");
+        opt.value = v.name;
+        opt.textContent = `${v.name} (${v.lang || ""})`;
+        voiceSelect.appendChild(opt);
+      });
+      if (prev && voices.some(v => v.name === prev)) {
+        voiceSelect.value = prev;
+      }
+    }
+
+    if (voiceSelect && voiceSelect.value) {
+      currentVoice = voices.find(v => v.name === voiceSelect.value) || pickDefaultArabicFemale();
+    } else if (savedName) {
+      currentVoice = voices.find(v => v.name === savedName) || pickDefaultArabicFemale();
+    } else {
+      currentVoice = pickDefaultArabicFemale();
+    }
+  }
+
+  // إنشاء واجهة التحكم (صندوق صغير في أسفل اليمين)
+  const box = document.createElement("div");
+  box.style.cssText =
+    "position:fixed;bottom:16px;right:16px;display:flex;flex-wrap:wrap;gap:6px;z-index:99999;align-items:center;";
+
+  voiceSelect = document.createElement("select");
+  voiceSelect.style.cssText =
+    "max-width:220px;padding:4px 6px;border-radius:999px;border:1px solid #444;background:#0b0f16;color:#fff;font-size:12px;";
+
+  const btnToggle = document.createElement("button");
+  btnToggle.textContent = enabled ? "🔊 صوت الإجابة: شغّال" : "🔈 صوت الإجابة: مطفي";
+  btnToggle.style.cssText =
+    "padding:6px 10px;border-radius:999px;border:none;background:#1f3b70;color:#fff;cursor:pointer;font-size:12px;";
+
+  const btnStop = document.createElement("button");
+  btnStop.textContent = "⏹ إيقاف";
+  btnStop.style.cssText =
+    "padding:6px 10px;border-radius:999px;border:none;background:#6b1f1f;color:#fff;cursor:pointer;font-size:12px;";
+
+  box.append(voiceSelect, btnToggle, btnStop);
   document.body.appendChild(box);
 
-  btnToggle.addEventListener('click', ()=>{
+  btnToggle.addEventListener("click", () => {
     enabled = !enabled;
-    localStorage.setItem('durra_tts_on', JSON.stringify(enabled));
-    btnToggle.textContent = enabled ? '🔊 صوت الإجابة: شغّال' : '🔈 صوت الإجابة: مطفي';
-    if (!enabled) try { speechSynthesis.cancel(); } catch(e){}
-  });
-  btnStop.addEventListener('click', ()=>{
-    try { speechSynthesis.cancel(); } catch(e){}
+    localStorage.setItem("durra_tts_on", JSON.stringify(enabled));
+    btnToggle.textContent = enabled ? "🔊 صوت الإجابة: شغّال" : "🔈 صوت الإجابة: مطفي";
+    if (!enabled) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch (e) {}
+    }
   });
 
-  function speak(text){
-    if (!enabled) return;
+  btnStop.addEventListener("click", () => {
     try {
-      speechSynthesis.cancel();
+      window.speechSynthesis.cancel();
+    } catch (e) {}
+  });
+
+  voiceSelect.addEventListener("change", () => {
+    const name = voiceSelect.value;
+    localStorage.setItem("durra_tts_voice", name);
+    if (voices && voices.length) {
+      currentVoice = voices.find(v => v.name === name) || currentVoice;
+    }
+  });
+
+  function speak(text) {
+    if (!enabled) return;
+    if (!text || !text.trim()) return;
+    try {
+      window.speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = (currentVoice && currentVoice.lang) || 'ar-SA';
-      if (currentVoice) u.voice = currentVoice;
+      if (currentVoice) {
+        u.voice = currentVoice;
+        u.lang = currentVoice.lang || "ar-SA";
+      } else {
+        u.lang = "ar-SA";
+      }
       u.rate = 1;
       u.pitch = 1;
       lastUtter = u;
-      speechSynthesis.speak(u);
-    } catch(e) { console.warn('TTS error', e); }
-  }
-
-  // مراقبة أي رسالة "assistant" جديدة والنطق تلقائيًا
-  const target = (typeof elMessages !== 'undefined' && elMessages) ? elMessages : document.body;
-  const observer = new MutationObserver((mut)=> {
-    for (const m of mut) {
-      m.addedNodes && m.addedNodes.forEach(node=>{
-        if (!(node instanceof HTMLElement)) return;
-        if (node.classList && node.classList.contains('message') && node.classList.contains('assistant')) {
-          const text = node.textContent || '';
-          if (text.trim()) speak(text.trim());
-        }
-      });
-    }
-  });
-  observer.observe(target, { childList:true, subtree:true });
-})();
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      console.warn
