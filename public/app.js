@@ -1,14 +1,12 @@
 // =======================
-// دُرّى — واجهة بسيطة للرد على الأسئلة
-// تركيزنا الآن بس على: سؤال ↔ جواب نصي
+// دُرّى — واجهة مبسطة (سؤال نصي + سؤال صوتي)
 // =======================
 
 const API_BASE = "https://durra-server.onrender.com";
 
-// نحاول نلقَى العناصر الرئيسية في الصفحة
+// العناصر الرئيسية
 const elForm =
-  document.getElementById("form") ||
-  document.querySelector("form");
+  document.getElementById("form") || document.querySelector("form");
 
 const elInput =
   document.getElementById("textInput") ||
@@ -18,7 +16,16 @@ let elMessages =
   document.getElementById("messages") ||
   document.querySelector(".messages");
 
-// لو ما لقينا صندوق رسائل، نخلق واحد بسيط
+// أزرار الصوت (إن وجدت في الصفحة)
+const elBtnMic =
+  document.getElementById("btnMic") || document.querySelector("[data-mic]");
+const elBtnStop =
+  document.getElementById("btnStop") || document.querySelector("[data-stop]");
+const elVoiceQ =
+  document.getElementById("voiceQuestion") ||
+  document.querySelector("[data-voice-q]");
+
+// لو ما في صندوق رسائل، ننشئ واحد بسيط
 if (!elMessages) {
   elMessages = document.createElement("div");
   elMessages.id = "messages";
@@ -27,7 +34,7 @@ if (!elMessages) {
   (elForm?.parentElement || document.body).appendChild(elMessages);
 }
 
-// دالة لإضافة رسالة في المحادثة
+// عرض رسالة في المحادثة
 function addMessage(text, who = "assistant") {
   if (!elMessages) return;
   const div = document.createElement("div");
@@ -38,12 +45,11 @@ function addMessage(text, who = "assistant") {
   elMessages.scrollTop = elMessages.scrollHeight;
 }
 
-// دالة تعرض نص عادي (مثلاً للأخطاء)
 function show(text) {
   addMessage(text, "assistant");
 }
 
-// نحاول نفحص اتصال الخادم (اختياري)
+// فحص سريع للخادم (اختياري)
 async function pingOnce() {
   try {
     const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
@@ -54,7 +60,7 @@ async function pingOnce() {
   }
 }
 
-// الدالة الرئيسية: إرسال السؤال وجلب الجواب
+// إرسال السؤال للنظام
 async function ask() {
   if (!elInput) {
     show("⚠ لم أجد خانة السؤال في الصفحة.");
@@ -67,11 +73,11 @@ async function ask() {
     return;
   }
 
-  // أضيف سؤال المستخدم للمحادثة
+  // أضيف سؤال المستخدم
   addMessage(q, "user");
   elInput.value = "";
 
-  // رسالة "جاري التفكير"
+  // جاري التفكير
   const thinking = document.createElement("div");
   thinking.className = "message assistant";
   thinking.textContent = "… جاري التفكير";
@@ -81,14 +87,14 @@ async function ask() {
   try {
     const payload = { message: q, history: [] };
 
-    // نجرب /api/chat أولاً
+    // جرب /api/chat أولاً
     let resp = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }).catch(() => null);
 
-    // لو ما اشتغل /api/chat أو رجع 404، نجرب /ask
+    // لو 404 أو ما رد، جرب /ask
     if (!resp || resp.status === 404) {
       resp = await fetch(`${API_BASE}/ask`, {
         method: "POST",
@@ -109,13 +115,9 @@ async function ask() {
     const reply =
       (data && (data.reply || data.answer || data.text)) || null;
 
-    if (reply) {
-      addMessage(reply, "assistant");
-    } else if (data && data.error) {
-      show("⚠ الخادم قال: " + data.error);
-    } else {
-      show("⚠ ما وصلت إجابة مفهومة من الخادم.");
-    }
+    if (reply) addMessage(reply, "assistant");
+    else if (data && data.error) show("⚠ الخادم قال: " + data.error);
+    else show("⚠ ما وصلت إجابة مفهومة من الخادم.");
   } catch (e) {
     console.error("ASK_ERROR", e);
     thinking.remove();
@@ -123,7 +125,65 @@ async function ask() {
   }
 }
 
-// ربط الأحداث (الفورم + زر الإرسال + إنتر)
+// ——— السؤال الصوتي (Web Speech API) ———
+let recognition = null;
+let listening = false;
+
+function ensureRecognition() {
+  if (recognition) return recognition;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    alert("العفو، المتصفح لا يدعم السؤال الصوتي.");
+    return null;
+  }
+  const rec = new SR();
+  rec.lang = "ar-SA";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+
+  rec.onstart = () => {
+    listening = true;
+    if (elBtnMic) elBtnMic.disabled = true;
+    if (elBtnStop) elBtnStop.disabled = false;
+    if (elVoiceQ) elVoiceQ.textContent = "… أستمع إليك";
+  };
+
+  rec.onresult = (e) => {
+    const txt = (e.results?.[0]?.[0]?.transcript || "").trim();
+    if (elVoiceQ) elVoiceQ.textContent = txt || "—";
+    if (elInput) elInput.value = txt;
+    // نرسل تلقائيًا
+    if (txt) ask();
+  };
+
+  rec.onerror = (e) => {
+    console.warn("STT_ERROR:", e.error);
+    if (elVoiceQ) elVoiceQ.textContent = "⚠ تعذر الاستماع";
+  };
+
+  rec.onend = () => {
+    listening = false;
+    if (elBtnMic) elBtnMic.disabled = false;
+    if (elBtnStop) elBtnStop.disabled = true;
+  };
+
+  recognition = rec;
+  return rec;
+}
+
+function startListening() {
+  const rec = ensureRecognition();
+  if (!rec) return;
+  if (!listening) rec.start();
+}
+
+function stopListening() {
+  try {
+    if (recognition && listening) recognition.stop();
+  } catch (_) {}
+}
+
+// ربط الأحداث (فورم + زر إرسال + إنتر + صوت)
 function wire() {
   if (elForm) {
     elForm.addEventListener("submit", (e) => {
@@ -132,7 +192,7 @@ function wire() {
     });
   }
 
-  // نحاول نلقَى زر "إرسال" إن وجد
+  // زر "إرسال"
   let elSend =
     document.querySelector("[data-send]") ||
     document.getElementById("btnSend");
@@ -145,7 +205,6 @@ function wire() {
   }
 
   if (elSend) {
-    // نتأكد ما يعيد تحميل الصفحة
     elSend.setAttribute("type", "button");
     elSend.addEventListener("click", () => ask());
   }
@@ -159,7 +218,17 @@ function wire() {
     });
   }
 
-  console.log("[WIRE] form:", !!elForm, "input:", !!elInput, "messages:", !!elMessages);
+  // أزرار الصوت
+  if (elBtnMic) elBtnMic.addEventListener("click", startListening);
+  if (elBtnStop) elBtnStop.addEventListener("click", stopListening);
+
+  console.log(
+    "[WIRE] form:", !!elForm,
+    "input:", !!elInput,
+    "messages:", !!elMessages,
+    "mic:", !!elBtnMic,
+    "stop:", !!elBtnStop
+  );
 }
 
 wire();
