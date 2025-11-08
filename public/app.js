@@ -1,10 +1,10 @@
 // =======================
-// دُرّى — واجهة مبسطة (سؤال نصي + سؤال صوتي + إجابة صوتية + زر إيقاف)
+// دُرّى — واجهة مبسطة (سؤال نصي + زر سؤال صوتي خاص بنا)
 // =======================
 
 const API_BASE = "https://durra-server.onrender.com";
 
-// عناصر الصفحة الأساسية
+// نحاول نلقَى العناصر الرئيسية في الصفحة
 const elForm =
   document.getElementById("form") ||
   document.querySelector("form");
@@ -26,10 +26,9 @@ if (!elMessages) {
   (elForm?.parentElement || document.body).appendChild(elMessages);
 }
 
-// نحاول نضيف زر ميكروفون خاص بنا إن ما كان موجود
+// نحاول نضيف زر ميكروفون صغير تحت خانة السؤال
 let elMicBtn =
-  document.getElementById("btnMicDynamic") ||
-  document.querySelector("#btnMicDynamic") ||
+  document.getElementById("btnMic") ||
   document.querySelector("[data-mic]");
 
 if (!elMicBtn && elInput) {
@@ -39,6 +38,7 @@ if (!elMicBtn && elInput) {
   elMicBtn.textContent = "🎙 سؤال صوتي";
   elMicBtn.style.cssText =
     "margin-top:8px;padding:6px 12px;border-radius:999px;border:none;cursor:pointer;font-size:14px;background:#243b64;color:#fff;";
+  // نحاول وضعه قرب خانة السؤال
   const parent = elInput.parentElement || elForm || document.body;
   parent.appendChild(elMicBtn);
 }
@@ -59,7 +59,7 @@ function show(text) {
   addMessage(text, "assistant");
 }
 
-// فحص اتصال الخادم (اختياري)
+// نحاول نفحص اتصال الخادم (اختياري)
 async function pingOnce() {
   try {
     const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
@@ -70,10 +70,7 @@ async function pingOnce() {
   }
 }
 
-// =======================
-// إرسال السؤال وجلب الجواب
-// =======================
-
+// الدالة الرئيسية: إرسال السؤال وجلب الجواب
 async function ask() {
   if (!elInput) {
     show("⚠ لم أجد خانة السؤال في الصفحة.");
@@ -86,7 +83,7 @@ async function ask() {
     return;
   }
 
-  // أضيف سؤال المستخدم
+  // أضيف سؤال المستخدم للمحادثة
   addMessage(q, "user");
   elInput.value = "";
 
@@ -107,7 +104,7 @@ async function ask() {
       body: JSON.stringify(payload),
     }).catch(() => null);
 
-    // لو رجع 404 أو ما اشتغل، نجرب /ask
+    // لو ما اشتغل /api/chat أو رجع 404، نجرب /ask
     if (!resp || resp.status === 404) {
       resp = await fetch(`${API_BASE}/ask`, {
         method: "POST",
@@ -128,15 +125,9 @@ async function ask() {
     const reply =
       (data && (data.reply || data.answer || data.text)) || null;
 
-    if (reply) {
-      addMessage(reply, "assistant");
-      // لو الإجابة الصوتية مفعّلة، ننطق الجواب
-      speakAnswerIfEnabled(reply);
-    } else if (data && data.error) {
-      show("⚠ الخادم قال: " + data.error);
-    } else {
-      show("⚠ ما وصلت إجابة مفهومة من الخادم.");
-    }
+    if (reply) addMessage(reply, "assistant");
+    else if (data && data.error) show("⚠ الخادم قال: " + data.error);
+    else show("⚠ ما وصلت إجابة مفهومة من الخادم.");
   } catch (e) {
     console.error("ASK_ERROR", e);
     thinking.remove();
@@ -144,10 +135,9 @@ async function ask() {
   }
 }
 
-// =======================
-// السؤال الصوتي (STT)
-// =======================
+// —— السؤال الصوتي (Web Speech API) ——
 
+// لو المتصفح لا يدعمه، بنعرض رسالة للمستخدمة
 let recognition = null;
 let listening = false;
 
@@ -204,72 +194,52 @@ function toggleListening() {
   }
 }
 
-// =======================
-// الإجابة الصوتية (TTS)
-// =======================
+// ربط الأحداث (الفورم + زر الإرسال + إنتر + زر الميكروفون)
+function wire() {
+  if (elForm) {
+    elForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      ask();
+    });
+  }
 
-let voiceAnswerEnabled = false;
-let elAnswerVoiceCheckbox = null;
-let elStopBtn = null;
-let ttsSupported = "speechSynthesis" in window;
-let lastUtterance = null;
+  // نبحث عن زر "إرسال"
+  let elSend =
+    document.querySelector("[data-send]") ||
+    document.getElementById("btnSend");
 
-function setupVoiceAnswerControls() {
-  // نبحث عن تشيك بوكس "الإجابة الصوتية"
-  const checkboxes = Array.from(
-    document.querySelectorAll("input[type='checkbox']")
-  );
+  if (!elSend) {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    elSend = buttons.find((b) =>
+      (b.textContent || "").trim().includes("إرسال")
+    );
+  }
 
-  elAnswerVoiceCheckbox = checkboxes.find((chk) => {
-    const label =
-      chk.closest("label") ||
-      chk.parentElement;
-    const txt = (label && label.textContent) || "";
-    return txt.includes("الإجابة صوتية");
-  });
+  if (elSend) {
+    elSend.setAttribute("type", "button");
+    elSend.addEventListener("click", () => ask());
+  }
 
-  if (elAnswerVoiceCheckbox) {
-    voiceAnswerEnabled = elAnswerVoiceCheckbox.checked;
-    elAnswerVoiceCheckbox.addEventListener("change", () => {
-      voiceAnswerEnabled = elAnswerVoiceCheckbox.checked;
-      if (!voiceAnswerEnabled && ttsSupported) {
-        window.speechSynthesis.cancel();
+  if (elInput) {
+    elInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        ask();
       }
     });
   }
 
-  // نبحث عن زر "إيقاف"
-  const buttons = Array.from(document.querySelectorAll("button"));
-  elStopBtn = buttons.find((b) =>
-    (b.textContent || "").trim().includes("إيقاف")
-  );
-
-  if (elStopBtn) {
-    elStopBtn.addEventListener("click", () => {
-      // إيقاف الكلام + الاستماع
-      try {
-        if (ttsSupported) {
-          window.speechSynthesis.cancel();
-        }
-        if (recognition && listening) {
-          recognition.stop();
-        }
-      } catch (e) {
-        console.warn("STOP_ERROR", e);
-      }
-    });
+  if (elMicBtn) {
+    elMicBtn.addEventListener("click", toggleListening);
   }
+
+  console.log(
+    "[WIRE] form:", !!elForm,
+    "input:", !!elInput,
+    "messages:", !!elMessages,
+    "micBtn:", !!elMicBtn
+  );
 }
 
-function speakAnswerIfEnabled(text) {
-  if (!voiceAnswerEnabled) return;
-  if (!ttsSupported) {
-    console.warn("TTS not supported in this browser.");
-    return;
-  }
-
-  try {
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = "ar-SA";
-    lastUtterance
+wire();
+pingOnce();
