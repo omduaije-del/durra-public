@@ -39,7 +39,7 @@ async function ask(question) {
   show("…أفكّر بالإجابة");
 
   try {
-    const res = await fetch(API_BASE + "/ask", {
+    const res = await fetch(API_BASE + "/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question: question }),
