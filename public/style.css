@@ -1,76 +1,182 @@
 :root{
-  --bg1:#0e1b2d; --bg2:#1b2b44;
-  --card:#0f172a; --edge:#213047;
-  --txt:#f8fafc; --muted:#cbd5e1;
-  --acc1:#38bdf8; --acc2:#a78bfa;
+  --bg1:#0e1b2d;
+  --bg2:#1b2b44;
+  --card:#0f172a;
+  --edge:#213047;
+  --txt:#f8fafc;
+  --muted:#cbd5e1;
+  --acc1:#38bdf8;
+  --acc2:#a78bfa;
 }
 
 *{box-sizing:border-box}
 html,body{height:100%}
+
 body{
-  margin:0; font-family:"Tajawal", system-ui, Segoe UI, Arial;
+  margin:0;
+  font-family:"Tajawal", system-ui, Segoe UI, Arial;
   background:
     radial-gradient(1200px 500px at 50% -200px, rgba(56,189,248,.18), transparent),
     linear-gradient(135deg, var(--bg1), var(--bg2));
   color:var(--txt);
-  min-height:100vh; display:flex;
+  min-height:100vh;
+  display:flex;
 }
-.wrapper{max-width:980px; width:100%; margin:auto; padding:20px}
 
-.hero{ text-align:center; margin:10px 0 16px }
-.avatar{ width:160px; height:160px; margin:14px auto 10px; border-radius:50%; overflow:hidden;
-  box-shadow:0 0 0 6px rgba(255,255,255,.15)
+.wrapper{
+  max-width:980px;
+  width:100%;
+  margin:auto;
+  padding:20px;
 }
-.avatar img{ width:100%; height:100%; object-fit:cover; display:block }
-h1{ margin:8px 0 4px }
-.sub{ color:var(--muted); margin:0 0 10px; font-size:14px }
 
+/* الهيدر والصورة */
+.hero{
+  text-align:center;
+  margin:10px 0 16px;
+}
+
+.avatar{
+  width:160px;
+  height:160px;
+  margin:14px auto 10px;
+  border-radius:50%;
+  overflow:hidden;
+  box-shadow:0 0 0 6px rgba(255,255,255,.15);
+}
+
+.avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+h1{
+  margin:8px 0 4px;
+}
+
+.sub{
+  color:var(--muted);
+  margin:0 0 10px;
+  font-size:14px;
+}
+
+/* صف التحكمات اللي فيها السؤال الصوتي والإجابة الصوتية واللكنات */
 .controls{
-  display:flex; flex-wrap:wrap; gap:10px; align-items:center;
-  background:rgba(255,255,255,.06); border-radius:14px; padding:10px;
-  border:1px solid rgba(255,255,255,.08); margin-bottom:10px
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  background:rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.08);
+  margin-bottom:10px;
 }
-.chk{display:flex; align-items:center; gap:6px; padding:6px 10px; background:#0b1625;
-  border-radius:10px; border:1px solid rgba(255,255,255,.06); font-size:14px}
-.sel{display:flex; align-items:center; gap:8px; padding:6px 10px; background:#0b1625;
-  border-radius:10px; border:1px solid rgba(255,255,255,.06); font-size:14px}
-.sel select{background:#0b1625; color:var(--txt); border:0; outline:none}
-.micbar{display:flex; gap:8px; margin-inline-start:auto}
-.micbar button{padding:10px 14px; border:0; border-radius:10px; background:#122235; color:var(--txt); cursor:pointer}
-.micbar button:disabled{opacity:.6; cursor:not-allowed}
 
+.chk{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  background:#0b1625;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.06);
+  font-size:14px;
+}
+
+.sel{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  background:#0b1625;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.06);
+  font-size:14px;
+}
+
+.sel select{
+  background:#0b1625;
+  color:var(--txt);
+  border:0;
+  outline:none;
+}
+
+/* أزرار ابدأ / إيقاف على اليسار */
+.micbar{
+  display:flex;
+  gap:8px;
+  margin-inline-start:auto;
+}
+
+.micbar button{
+  padding:10px 14px;
+  border:0;
+  border-radius:10px;
+  background:#122235;
+  color:var(--txt);
+  cursor:pointer;
+}
+
+.micbar button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* سطر إدخال السؤال */
 .ask{
-  display:flex; gap:10px; align-items:center;
-  background:rgba(255,255,255,.06); border-radius:14px; padding:10px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+  background:rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:10px;
   border:1px solid rgba(255,255,255,.08);
 }
+
 .ask input{
-  flex:1; padding:12px 14px; border:0; border-radius:10px;
-  background:#0b1625; color:var(--txt); outline:none;
+  flex:1;
+  padding:12px 14px;
+  border:0;
+  border-radius:10px;
+  background:#0b1625;
+  color:var(--txt);
+  outline:none;
 }
+
 .ask button{
-  padding:12px 18px; border:0; border-radius:12px;
+  padding:12px 18px;
+  border:0;
+  border-radius:12px;
   background:linear-gradient(135deg, var(--acc1), var(--acc2));
-  color:#091420; font-weight:700; cursor:pointer;
+  color:#091420;
+  font-weight:700;
+  cursor:pointer;
 }
-.ask button:disabled{ opacity:.6; cursor:not-allowed }
 
+.ask button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* مربع الإجابة / سجل المحادثة */
 .panel{
-  margin-top:14px; padding:14px;
+  margin-top:14px;
+  padding:14px;
   border:1px solid rgba(255,255,255,.08);
-  border-radius:14px; background:rgba(255,255,255,.04);
-  min-height:84px
-}
-.result{ white-space:pre-wrap; line-height:1.9 }
-/* إخفاء الشريط الميت فوق مربع الإجابة لو هو serverStatus */
-#serverStatus {
-  display: none;
+  border-radius:14px;
+  background:rgba(255,255,255,.04);
+  min-height:84px;
 }
 
-/* تكبير مربع الإجابة */
-#answer {
-  min-height: 180px;       /* ارتفاع أكبر */
-  padding: 16px;           /* مساحة داخلية أوسع */
-  font-size: 1.1rem;       /* خط أوضح شوي */
-  line-height: 1.6;
+.result{
+  white-space:pre-wrap;
+  line-height:1.9;
+}
+
+/* إخفاء شريط حالة السيرفر القديم الصغير لو موجود */
+#serverStatus{
+  display:none;
 }
