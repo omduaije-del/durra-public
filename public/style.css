@@ -62,3 +62,15 @@ h1{ margin:8px 0 4px }
   min-height:84px
 }
 .result{ white-space:pre-wrap; line-height:1.9 }
+/* إخفاء الشريط الميت فوق مربع الإجابة لو هو serverStatus */
+#serverStatus {
+  display: none;
+}
+
+/* تكبير مربع الإجابة */
+#answer {
+  min-height: 180px;       /* ارتفاع أكبر */
+  padding: 16px;           /* مساحة داخلية أوسع */
+  font-size: 1.1rem;       /* خط أوضح شوي */
+  line-height: 1.6;
+}
