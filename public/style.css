@@ -163,12 +163,7 @@ h1{
 
 /* المربع اللي كان أزرق: خليناه شفاف وصغير */
 .panel{
-  margin-top:14px;
-  padding:0;
-  border:none;
-  border-radius:0;
-  background:transparent;
-  min-height:0;
+  display: contents;
 }
 
 /* نص الإجابة نفسه */
