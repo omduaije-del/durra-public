@@ -287,7 +287,7 @@ pingOnce();
 
   // أزرار طافية فوق الصفحة (لا تغيّر الستايل الأساسي)
   const box = document.createElement('div');
-  box.style.cssText = 'position:fixed;bottom:16px;right:16px;display:flex;gap:8px;z-index:99999';
+  box.style.cssText = 'position:fixed;bottom:16px;left:16px;display:flex;gap:8px;z-index:99999';
   const btnToggle = document.createElement('button');
   btnToggle.textContent = enabled ? '🔊 صوت الإجابة: شغّال' : '🔈 صوت الإجابة: مطفي';
   btnToggle.style.cssText = 'padding:8px 12px;border-radius:999px;border:none;background:#1f3b70;color:#fff;cursor:pointer;font-size:14px';
