@@ -4,6 +4,39 @@
 
 const API_BASE = "https://durra-server.onrender.com";
 
+// دالة تنظيف نص الإجابة من الرموز الزائدة
+function cleanAnswer(text) {
+  if (!text) return '';
+
+  let cleaned = text;
+
+  // إزالة أي كود محصور بين ``` إن وجد
+  cleaned = cleaned.replace(/```[\s\S]*?```/g, '');
+
+  // تحويل عناوين ### و ## و # إلى سطر جديد
+  cleaned = cleaned.replace(/#+\s*/g, '\n');
+
+  // إزالة النجوم ** من التنسيق
+  cleaned = cleaned.replace(/\*\*/g, '');
+
+  // تحويل \frac{a}{b} إلى a / b
+  cleaned = cleaned.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, '$1 / $2');
+
+  // إزالة الرموز \[ \] \( \)
+  cleaned = cleaned.replace(/\\[\[\]\(\)]/g, '');
+
+  // استبدال \\ بسطر جديد
+  cleaned = cleaned.replace(/\\\\/g, '\n');
+
+  // تقليل المسافات المكررة
+  cleaned = cleaned.replace(/[ \t]+/g, ' ');
+
+  // تقليل الأسطر الفارغة المكررة
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+  return cleaned.trim();
+}
+
 // نحاول نلقَى العناصر الرئيسية في الصفحة
 const elForm =
   document.getElementById("form") ||
@@ -46,15 +79,20 @@ if (!elMicBtn && elInput) {
 // دالة لإضافة رسالة في المحادثة
 function addMessage(text, who = "assistant") {
   if (!elMessages) return;
+
   const div = document.createElement("div");
   div.className = "message " + (who === "user" ? "user" : "assistant");
   div.style.margin = "8px 0";
-  div.textContent = text;
+
+  // هنا السحر: ننظف إجابات دُرّى فقط، ونترك أسئلة الطالبة كما هي
+  const finalText = (who === "assistant") ? cleanAnswer(text) : text;
+  div.textContent = finalText;
+
   elMessages.appendChild(div);
   elMessages.scrollTop = elMessages.scrollHeight;
 }
 
-// ============== دالة تنظيف النص ==============
+// ============== دالة تنظيف النص (قديمة تُستخدم مع show) ==============
 function cleanText(text) {
   if (!text) return "";
 
@@ -79,8 +117,11 @@ function cleanText(text) {
 // ============== دالة عرض النص ==============
 function show(text) {
   const clean = cleanText(text);
-  if (elAnswer) {
+  if (typeof elAnswer !== "undefined" && elAnswer) {
     elAnswer.textContent = clean;
+  } else {
+    // لو ما فيه elAnswer نعرضه كرسالة مساعدة عادية
+    addMessage(clean, "assistant");
   }
 }
 
@@ -150,9 +191,14 @@ async function ask() {
     const reply =
       (data && (data.reply || data.answer || data.text)) || null;
 
-    if (reply) addMessage(reply, "assistant");
-    else if (data && data.error) show("⚠ الخادم قال: " + data.error);
-    else show("⚠ ما وصلت إجابة مفهومة من الخادم.");
+    if (reply) {
+      // الآن الرد يمر عبر addMessage => cleanAnswer قبل ما ينعرض
+      addMessage(reply, "assistant");
+    } else if (data && data.error) {
+      show("⚠ الخادم قال: " + data.error);
+    } else {
+      show("⚠ ما وصلت إجابة مفهومة من الخادم.");
+    }
   } catch (e) {
     console.error("ASK_ERROR", e);
     thinking.remove();
@@ -268,6 +314,7 @@ function wire() {
 
 wire();
 pingOnce();
+
 // ==== ملحق آمن: "الإجابة الصوتية + زر إيقاف" (لا يلمس الكود الأساسي) ====
 (function(){
   if (!('speechSynthesis' in window)) return;
