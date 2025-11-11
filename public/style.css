@@ -9,12 +9,19 @@
   --acc2:#a78bfa;
 }
 
-*{box-sizing:border-box}
-html,body{height:100%}
+*,
+*::before,
+*::after{
+  box-sizing:border-box;
+}
+
+html,body{
+  height:100%;
+}
 
 body{
   margin:0;
-  font-family:"Tajawal", system-ui, Segoe UI, Arial;
+  font-family:"Tajawal", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   background:
     radial-gradient(1200px 500px at 50% -200px, rgba(56,189,248,.18), transparent),
     linear-gradient(135deg, var(--bg1), var(--bg2));
@@ -31,110 +38,95 @@ body{
 }
 
 /* الهيدر والصورة */
+
 .hero{
   text-align:center;
-  margin:10px 0 16px;
+  margin:10px 0 18px;
 }
 
-/* نخلي الفقاعة (الدائرة) هي اللي تتحرك */
 .avatar{
-  width:160px;
-  height:160px;
-  margin:14px auto 10px;
+  width:170px;
+  height:170px;
+  margin:6px auto 10px;
   border-radius:50%;
-  overflow:hidden;
-  box-shadow:0 0 0 6px rgba(255,255,255,.15);
+  background:rgba(15,23,42,.9);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 0 0 6px rgba(255,255,255,.18);
+}
+
+/* نخلي الفقاعة نفسها تتحرك */
+.avatar{
   animation:durra-bubble 4s ease-in-out infinite;
 }
 
 .avatar img{
-  width:100%;
-  height:100%;
-  object-fit:cover;
+  width:140px;
+  height:140px;
+  object-fit:contain;
   display:block;
 }
 
 h1{
-  margin:8px 0 4px;
+  margin:10px 0 6px;
+  font-size:32px;
 }
 
 .sub{
   color:var(--muted);
-  margin:0 0 10px;
-  font-size:14px;
+  margin:0 0 18px;
+  font-size:15px;
 }
 
-/* صف التحكمات القديم (لو رجعناه مستقبلاً) */
-.controls{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  align-items:center;
-  background:rgba(255,255,255,.06);
-  border-radius:14px;
-  padding:10px;
-  border:1px solid rgba(255,255,255,.08);
-  margin-bottom:10px;
-}
+/* فورم السؤال */
 
-.chk{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  padding:6px 10px;
-  background:#0b1625;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.06);
-  font-size:14px;
-}
-
-.sel{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:6px 10px;
-  background:#0b1625;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.06);
-  font-size:14px;
-}
-
-.sel select{
-  background:#0b1625;
-  color:var(--txt);
-  border:0;
-  outline:none;
-}
-
-/* سطر إدخال السؤال وزر "إرسال" */
 .ask{
   display:flex;
   gap:10px;
   align-items:center;
-  background:rgba(255,255,255,.06);
-  border-radius:14px;
+  background:rgba(15,23,42,.8);
+  border-radius:16px;
   padding:10px;
-  border:1px solid rgba(255,255,255,.08);
+  border:1px solid rgba(148,163,184,.35);
 }
 
 .ask input{
   flex:1;
   padding:12px 14px;
   border:0;
-  border-radius:10px;
-  background:#0b1625;
+  border-radius:12px;
+  background:#020617;
   color:var(--txt);
   outline:none;
+  font-size:15px;
+}
+
+.ask input::placeholder{
+  color:rgba(148,163,184,.8);
 }
 
 .ask button{
-  padding:12px 18px;
+  padding:12px 20px;
   border:0;
-  border-radius:12px;
+  border-radius:14px;
   background:linear-gradient(135deg, var(--acc1), var(--acc2));
-  color:#091420;
+  color:#020617;
   font-weight:700;
   cursor:pointer;
+  white-space:nowrap;
+  box-shadow:0 10px 25px rgba(15,23,42,.5);
+  transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;
+}
+
+.ask button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 14px 35px rgba(15,23,42,.65);
+}
+
+.ask button:active{
+  transform:scale(.97);
+  box-shadow:0 6px 15px rgba(15,23,42,.6);
 }
 
 .ask button:disabled{
@@ -142,116 +134,72 @@ h1{
   cursor:not-allowed;
 }
 
-/* صف الأزرار الصوتية تحت زر إرسال */
-.voice-row{
-  display:flex;
-  gap:10px;
-  margin-top:8px;
+/* صندوق الإجابة */
+
+.panel{
+  margin-top:16px;
+  border-radius:18px;
+  background:rgba(15,23,42,.9);
+  border:1px solid rgba(148,163,184,.35);
+  padding:16px 18px;
 }
 
-.voice-btn{
-  flex:0 0 auto;
-  padding:8px 12px;
-  border-radius:10px;       /* مربّعة شوي مثل ما طلبتِ */
-  border:1px solid rgba(56,189,248,0.8);
+.result{
+  white-space:pre-wrap;
+  line-height:2;
+  font-size:18px;
+}
+
+/* إخفاء صف التحكمات القديم إن وُجد */
+.controls{
+  display:none !important;
+}
+
+/* أزرار السؤال الصوتي + الإجابة الصوتية تحت الفورم */
+
+#btnMic,
+#btnTTS{
+  padding:7px 10px;
+  font-size:13px;
+  border-radius:10px;   /* مربعة أكثر من قبل */
+  border:1px solid rgba(56,189,248,0.9);
   background:#020617;
   color:#e5e7eb;
-  font-size:0.85rem;
+  cursor:pointer;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:6px;
-  cursor:pointer;
-  transition:transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  gap:4px;
+  transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;
 }
 
-.voice-btn:hover{
+#btnMic:hover,
+#btnTTS:hover{
   opacity:1;
   box-shadow:0 3px 10px rgba(15,23,42,0.6);
   transform:translateY(-1px);
 }
 
-.voice-btn:active{
+#btnMic:active,
+#btnTTS:active{
   transform:scale(0.97);
 }
 
-/* المربع اللي كان أزرق: خليناه شفاف وصغير */
-.panel{
-  display:contents;
-}
+/* حركة فقاعة دُرّى */
 
-/* مربع المحادثة للإجابات */
-#messages{
-  margin-top:12px;
-  padding:12px 14px;
-  background:rgba(15,23,42,0.88);
-  border-radius:16px;
-  border:1px solid rgba(148,163,184,0.45);
-  max-height:320px;
-  overflow:auto;
-}
-
-.message{
-  margin:6px 0;
-  line-height:1.9;
-  white-space:pre-wrap;
-  font-size:15px;
-}
-
-.message.user{
-  color:var(--muted);
-  text-align:right;
-}
-
-.message.assistant{
-  color:var(--txt);
-}
-
-/* النص القديم لو استُخدم */
-.result{
-  white-space:pre-wrap;
-  line-height:1.9;
+@keyframes durra-bubble{
+  0%{
+    transform:translateY(0);
+  }
+  50%{
+    transform:translateY(-8px);
+  }
+  100%{
+    transform:translateY(0);
+  }
 }
 
 /* إخفاء شريط حالة السيرفر القديم لو موجود */
 #serverStatus{
   display:none;
-}
-
-/* حركة الفقاعة */
-@keyframes durra-bubble{
-  0%{ transform:translateY(0); }
-  50%{ transform:translateY(-6px); }
-  100%{ transform:translateY(0); }
-}
-
-/* كسر بسيط فوق بعض للإجابات (لو استخدمناه مستقبلاً) */
-.frac{
-  display:inline-flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  font-size:0.95em;
-  line-height:1.1;
-  vertical-align:middle;
-  margin:0 2px;
-}
-
-.frac .top{
-  padding:0 2px 1px;
-}
-
-.frac .bar{
-  width:100%;
-  border-top:1px solid currentColor;
-  margin:1px 0;
-}
-
-.frac .bot,
-.frac .bottom{
-  padding:1px 2px 0;
-}
-/* إخفاء شريط السؤال الصوتي / الإجابة الصوتية القديم */
-.controls{
-  display: none !important;
 }
