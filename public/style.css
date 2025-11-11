@@ -230,3 +230,21 @@ img[src*="durra.png"]{
     transform:translateY(0);
   }
 }
+/* كسر بسيط فوق بعض للإجابات */
+.frac{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-size:0.95em;
+  line-height:1.1;
+  vertical-align:middle;
+  margin:0 2px;
+}
+.frac .top{
+  border-bottom:1px solid currentColor;
+  padding:0 2px 1px;
+}
+.frac .bottom{
+  padding:1px 2px 0;
+}
