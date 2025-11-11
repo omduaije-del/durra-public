@@ -28,7 +28,7 @@ function localizeMathSymbols(text) {
 
   let t = text;
 
-  // x كس متغير → س (مع محاولة تجنّب الكلمات)
+  // x كمتغير → س (مع محاولة تجنّب الكلمات الإنجليزية)
   t = t.replace(/\bx\b/g, "س");
   t = t.replace(/(\d)\s*x\b/g, "$1س");
   t = t.replace(/x(?=\s*[\+\-\*\/=)\]])/g, "س");
@@ -78,19 +78,20 @@ function cleanAnswer(text) {
 
 // تحويل الكسور والأسس إلى HTML بشكل مرتب
 function fractionsAndPowersToHtml(txt) {
+  if (!txt) return "";
   // 1) نهرب النص كله أولًا
   let t = escapeHtml(txt);
 
   // 2) \frac{a}{b} → placeholder
-  t = t.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, (_, a, b) => {
-    return `[[FRAC:${escapeHtml(a)}|${escapeHtml(b)}]]`;
+  t = t.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, (m, a, b) => {
+    return `[[FRAC:${a}|${b}]]`;
   });
 
   // 3) a / b القصيرة → كسر
   t = t.replace(
     /(^|[\s(\[])([^()\s]{1,12})[ \t]*\/[ \t]*([^()\s]{1,12})(?=([\s)\].,!?؛،]|$))/g,
     (m, lead, A, B, tail) => {
-      return `${lead}[[FRAC:${escapeHtml(A)}|${escapeHtml(B)}]]${tail || ""}`;
+      return `${lead}[[FRAC:${A}|${B}]]${tail || ""}`;
     }
   );
 
@@ -103,12 +104,12 @@ function fractionsAndPowersToHtml(txt) {
   );
 
   // 5) نحول الكسور إلى HTML
-  t = t.replace(/\[\[FRAC:([^|]+)\|([^\]]+)\]\]/g, (_, top, bot) => {
+  t = t.replace(/\[\[FRAC:([^|]+)\|([^\]]+)\]\]/g, (m, top, bot) => {
     return `<span class="frac"><span class="top">${top}</span><span class="bar"></span><span class="bot">${bot}</span></span>`;
   });
 
   // 6) نحول الأسس إلى HTML
-  t = t.replace(/\[\[POW:([^|]+)\|([^\]]+)\]\]/g, (_, base, exp) => {
+  t = t.replace(/\[\[POW:([^|]+)\|([^\]]+)\]\]/g, (m, base, exp) => {
     return `<span class="pow">${base}<sup>${exp}</sup></span>`;
   });
 
@@ -117,15 +118,12 @@ function fractionsAndPowersToHtml(txt) {
   return parts.map((p) => `<p>${p}</p>`).join("");
 }
 
-// نضمن إدراج ستايل الكسور مرة واحدة (لو نسيتِ تضيفينه في CSS)
+// نضمن إدراج ستايل الكسور مرة واحدة (لو ما كان في CSS)
 let _fractionsStyleInjected = false;
 function ensureAnswerStyles() {
   if (_fractionsStyleInjected) return;
   const css = `
   .message.assistant p{margin:6px 0; line-height:1.9;}
-  .frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 .2em;font-size:0.95em;}
-  .frac .top,.frac .bot{line-height:1.2;padding:0 2px;white-space:nowrap;}
-  .frac .bar{width:100%;border-top:1px solid currentColor;margin:1px 0;}
   .pow sup{font-size:0.75em;vertical-align:super;}
   `;
   const style = document.createElement("style");
@@ -148,7 +146,7 @@ let elMessages =
   document.getElementById("messages") ||
   document.querySelector(".messages");
 
-// لو ما لقينا صندوق رسائل، نخلق واحد بسيط
+// لو ما لقينا صندوق رسائل، نخلق واحد بسيط (احتياط)
 if (!elMessages) {
   elMessages = document.createElement("div");
   elMessages.id = "messages";
@@ -214,11 +212,7 @@ function cleanText(text) {
 
 function show(text) {
   const clean = cleanText(text);
-  if (typeof elAnswer !== "undefined" && elAnswer) {
-    elAnswer.textContent = clean;
-  } else {
-    addMessage(clean, "assistant");
-  }
+  addMessage(clean, "assistant");
 }
 
 // ========= اتصال الخادم =========
@@ -410,7 +404,7 @@ function wire() {
 wire();
 pingOnce();
 
-// ==== ملحق: "الإجابة الصوتية" مع تنظيف بسيط للنطق ====
+// ==== ملحق: "الإجابة الصوتية" مع تنظيف قوي للنص المنطوق ====
 (function () {
   if (!("speechSynthesis" in window)) return;
 
@@ -429,7 +423,7 @@ pingOnce();
   chooseVoice();
   window.speechSynthesis.onvoiceschanged = chooseVoice;
 
-  // زر صغير تحت في الزاوية (تبديل تشغيل/إيقاف)
+  // زر صغير في الزاوية لتشغيل/إطفاء الصوت
   const box = document.createElement("div");
   box.style.cssText =
     "position:fixed;bottom:16px;left:16px;display:flex;gap:8px;z-index:99999";
@@ -453,22 +447,49 @@ pingOnce();
     }
   });
 
+  // تنظيف النص قبل النطق
   function prepareForSpeech(text) {
-    return text
-      .replace(/\\frac/g, " كسر ")
-      .replace(/\//g, " على ")
-      .replace(/=/g, " يساوي ")
-      .replace(/\*/g, " ضرب ")
-      .replace(/[\[\]\{\}\(\)]/g, " ")
-      .replace(/[|]/g, " ");
+    let t = text || "";
+
+    // تجاهل رسائل "جاري التفكير" والتنبيهات
+    if (/جاري التفكير/.test(t)) return "";
+    if (/⚠/.test(t)) return "";
+
+    // حذف الروابط بالكامل
+    t = t.replace(/https?:\/\/\S+/g, " ");
+
+    // حذف الـ IDs والكلمات الإنجليزية الطويلة مثل org-... , gpt-...
+    t = t.replace(/[A-Za-z0-9]{3,}/g, " ");
+
+    // تحويل بعض الرموز إلى كلمات عربية مفهومة للطالبة
+    t = t.replace(/\\frac/g, " كسر ");
+    t = t.replace(/\\/g, " ");
+    t = t.replace(/\//g, " على ");
+    t = t.replace(/\*/g, " ضرب ");
+    t = t.replace(/=/g, " يساوي ");
+    t = t.replace(/\+/g, " زائد ");
+    t = t.replace(/-/g, " ناقص ");
+
+    // إزالة أقواس ورموز غير مهمة
+    t = t.replace(/[\[\]\{\}\(\)\|\_\^\~]/g, " ");
+
+    // تقليل تكرار الفواصل والنقاط
+    t = t.replace(/[.,;:،؛]{2,}/g, "، ");
+
+    // حذف الفراغات الزائدة
+    t = t.replace(/\s{2,}/g, " ").trim();
+
+    return t;
   }
 
   function speak(text) {
     if (!enabled) return;
+    const prepared = prepareForSpeech(text);
+    if (!prepared) return;
+
     try {
       speechSynthesis.cancel();
-      const t = prepareForSpeech(text.trim());
-      const u = new SpeechSynthesisUtterance(t);
+      const u = new SpeechSynthesisUtterance(prepared);
       u.lang = (currentVoice && currentVoice.lang) || "ar-SA";
       if (currentVoice) u.voice = currentVoice;
       u.rate = 1;
@@ -479,7 +500,7 @@ pingOnce();
     }
   }
 
-  // مراقبة أي رسالة "assistant" جديدة والنطق تلقائيًا
+  // مراقبة أي رسالة "assistant" جديدة والنطق تلقائيًا بعد التنظيف
   const target =
     typeof elMessages !== "undefined" && elMessages ? elMessages : document.body;
   const observer = new MutationObserver((mut) => {
