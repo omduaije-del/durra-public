@@ -176,3 +176,57 @@ h1{
 #serverStatus{
   display:none;
 }
+/* === تنسيق أزرار سماع الصوت والإيقاف فقط === */
+
+#btnMic,
+#btnStop{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+
+  padding:4px 10px;
+  font-size:0.8rem;        /* يصغر النص والأيقونة شوي */
+  border-radius:999px;     /* كبسولة ناعمة */
+
+  border:1px solid rgba(56,189,248,0.8);   /* إطار أزرق ناعم */
+  background:#020617;                       /* خلفية غامقة تشبه المنصّة */
+  color:#e5e7eb;                            /* نص فاتح */
+
+  margin-top:4px;
+  margin-inline-start:6px;  /* تبعد الأزرار شوي عن باقي العناصر */
+
+  cursor:pointer;
+  transition:transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+#btnMic:hover,
+#btnStop:hover{
+  opacity:1;
+  box-shadow:0 3px 10px rgba(15,23,42,0.6);
+  transform:translateY(-1px);
+}
+
+#btnMic:active,
+#btnStop:active{
+  transform:scale(0.97);
+}
+/* إعادة حركة فقاعة دُرى بدون لمس الأزرار */
+
+/* نطبّق الحركة على صورة durra.png فقط */
+img[src*="durra.png"]{
+  animation:durra-bubble 4s ease-in-out infinite;
+}
+
+/* تعريف حركة الفقاعة */
+@keyframes durra-bubble{
+  0%{
+    transform:translateY(0);
+  }
+  50%{
+    transform:translateY(-6px);
+  }
+  100%{
+    transform:translateY(0);
+  }
+}
