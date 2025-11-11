@@ -331,3 +331,35 @@ function wire() {
 }
 
 wire();
+// ===== نقل زر "سؤال صوتي" و "قراءة الإجابة" تحت زر "إرسال" =====
+window.addEventListener("load", () => {
+  const sendBtn =
+    document.getElementById("btnSend") ||
+    document.querySelector("[data-send]");
+
+  const micBtn =
+    document.getElementById("btnMic") ||
+    document.querySelector("[data-mic]");
+
+  const readBtn =
+    document.getElementById("btnReadAnswer") ||
+    document.querySelector("[data-tts]");
+
+  if (!sendBtn || !micBtn || !readBtn) return;
+
+  // نخلق شريط صغير تحت خانة السؤال
+  const bar = document.createElement("div");
+  bar.style.display = "flex";
+  bar.style.justifyContent = "flex-end";
+  bar.style.gap = "8px";
+  bar.style.marginTop = "8px";
+
+  bar.appendChild(readBtn);
+  bar.appendChild(micBtn);
+
+  // نحاول نحطه تحت صندوق السؤال مباشرة
+  const askBox = sendBtn.closest(".ask") || sendBtn.parentElement;
+  if (askBox && askBox.parentElement) {
+    askBox.parentElement.insertBefore(bar, askBox.nextSibling);
+  }
+});
