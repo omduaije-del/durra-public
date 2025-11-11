@@ -251,3 +251,7 @@ h1{
 .frac .bottom{
   padding:1px 2px 0;
 }
+/* إخفاء شريط السؤال الصوتي / الإجابة الصوتية القديم */
+.controls{
+  display: none !important;
+}
