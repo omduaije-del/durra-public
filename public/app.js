@@ -331,6 +331,7 @@ function wire() {
 }
 
 wire();
+
 // ===== نقل زر "سؤال صوتي" و "قراءة الإجابة" تحت زر "إرسال" =====
 window.addEventListener("load", () => {
   const sendBtn =
