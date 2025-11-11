@@ -1,12 +1,12 @@
 // =======================
-// دُرّى — واجهة مبسطة (سؤال نصي + سؤال صوتي + إجابة صوتية)
+// دُرّى — معلمة الرياضيات الذكية
+// واجهة مبسطة: سؤال نصي + سؤال صوتي + إجابة صوتية
 // =======================
 
 const API_BASE = "https://durra-server.onrender.com";
 
-// ============ أدوات مساعدة ============
+// ---------- أدوات مساعدة ----------
 
-// حماية من إدخال HTML مباشر
 function escapeHtml(s){
   return String(s)
     .replace(/&/g,"&amp;")
@@ -22,48 +22,48 @@ function toArabicDigits(text){
   return String(text).replace(/[0-9]/g,d=>map[d]);
 }
 
-// توحيد رموز الرياضيات (x → س ، × ، √ …)
+// توحيد رموز الرياضيات
 function localizeMathSymbols(text){
   if(!text) return "";
-  let t = text;
+  let t = String(text);
 
-  // المتغير x كرمز رياضي → س
+  // المتغير x → س
   t = t
     .replace(/\bx\b/g,"س")
     .replace(/(\d)\s*x\b/g,"$1س")
     .replace(/x(?=\s*[\+\-\*\/=)\]])/g,"س");
 
-  // لايتِك ورموز الرياضيات
+  // أوامر لايتك
   t = t
     .replace(/\\cdot/g," × ")
     .replace(/\\times/g," × ")
     .replace(/\\sqrt/g," √ ")
     .replace(/\\pm/g," ± ");
 
-  // 3 x 4 بين أعداد → ٣ × ٤
+  // 15 x 15 → ١٥ × ١٥
   t = t.replace(/([0-9٠-٩]+)\s*x\s*([0-9٠-٩]+)/g,"$1 × $2");
 
-  // الأرقام إلى عربية
+  // الأرقام عربية
   t = toArabicDigits(t);
 
   return t;
 }
 
-// تنظيف نص الإجابة من الرموز الزائدة وتنسيق رياضيات
+// تنظيف نص الإجابة قبل عرضها
 function cleanAnswer(text){
   if(!text) return "";
-  let cleaned = text;
+  let cleaned = String(text);
 
   // إزالة الكود بين ```
   cleaned = cleaned.replace(/```[\s\S]*?```/g,"");
 
-  // إزالة عناوين Markdown (# ###)
+  // حذف عناوين Markdown
   cleaned = cleaned.replace(/^[ \t]*#{1,6}[ \t]*/gm,"");
 
   // إزالة النجوم ** من التنسيق
   cleaned = cleaned.replace(/\*\*/g,"");
 
-  // إزالة الرموز \[ \] \( \)
+  // إزالة \[ \] \( \)
   cleaned = cleaned.replace(/\\[\[\]\(\)]/g,"");
 
   // استبدال \\ بسطر جديد
@@ -73,29 +73,29 @@ function cleanAnswer(text){
   cleaned = cleaned.replace(/[ \t]+/g," ");
   cleaned = cleaned.replace(/\n{3,}/g,"\n\n");
 
-  // توحيد رياضيات عربية
+  // توحيد الرموز والأرقام
   cleaned = localizeMathSymbols(cleaned);
 
   return cleaned.trim();
 }
 
-// تحويل الكسور والأسس إلى HTML منسّق
+// تحويل الكسور والأسس إلى HTML لطيف
 function fractionsAndPowersToHtml(txt){
   if(!txt) return "";
   let t = escapeHtml(txt);
 
-  // \frac{a}{b}
+  // \frac{a}{b} → كسر
   t = t.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g,
     (m,a,b)=>`[[FRAC:${a}|${b}]]`
   );
 
-  // a / b البسيطة
+  // a / b البسيطة → كسر
   t = t.replace(
     /(^|[\s(\[])([^()\s]{1,12})[ \t]*\/[ \t]*([^()\s]{1,12})(?=([\s)\].,!?؛،]|$))/g,
     (m,lead,A,B,tail)=>`${lead}[[FRAC:${A}|${B}]]${tail||""}`
   );
 
-  // a^2
+  // a^2 → أس
   t = t.replace(
     /(\d+|[٠-٩]+|س|\([^()]+\))\^([0-9٠-٩]+)/g,
     (m,base,exp)=>`[[POW:${base}|${exp}]]`
@@ -109,11 +109,12 @@ function fractionsAndPowersToHtml(txt){
     (m,base,exp)=>`<span class="pow">${base}<sup>${exp}</sup></span>`
   );
 
+  // الفقرات
   const parts = t.split(/\n{2,}/).map(p=>p.replace(/\n/g,"<br>"));
   return parts.map(p=>`<p>${p}</p>`).join("");
 }
 
-// لو ردّ الخادم برسالة Rate limit إنجليزية نرجع رسالة عربية بسيطة
+// رسالة خطأ السيرفر الخاصة بالـ rate limit
 function filterServerError(text){
   if(!text) return null;
   const low = String(text).toLowerCase();
@@ -127,7 +128,7 @@ function filterServerError(text){
   return text;
 }
 
-// ============ عناصر الصفحة ============
+// ---------- عناصر الصفحة ----------
 
 const elForm =
   document.getElementById("form") ||
@@ -141,7 +142,6 @@ let elMessages =
   document.getElementById("messages") ||
   document.querySelector(".messages");
 
-// لو ما لقينا صندوق رسائل، ننشئ واحد بسيط
 if(!elMessages){
   elMessages = document.createElement("div");
   elMessages.id = "messages";
@@ -162,7 +162,7 @@ if(!elMicBtn && elInput){
   parent.appendChild(elMicBtn);
 }
 
-// زر الإجابة الصوتية (تبديل تشغيل/إيقاف)
+// زر الإجابة الصوتية
 let elTTSBtn = document.getElementById("btnTTS");
 if(!elTTSBtn){
   elTTSBtn = document.createElement("button");
@@ -176,7 +176,7 @@ if(!elTTSBtn){
   }
 }
 
-// ============ عرض الرسائل ============
+// ---------- عرض الرسائل ----------
 
 function addMessage(text, who="assistant"){
   if(!elMessages) return;
@@ -188,24 +188,27 @@ function addMessage(text, who="assistant"){
     const cleaned = cleanAnswer(text);
     div.innerHTML = fractionsAndPowersToHtml(cleaned);
   }else{
-    div.textContent = text;
+    // حتى سؤال الطالبة نطبّق عليه تنسيق الأرقام والرموز
+    const nice = localizeMathSymbols(text);
+    div.textContent = nice;
   }
 
   elMessages.appendChild(div);
   elMessages.scrollTop = elMessages.scrollHeight;
 }
 
-// فحص بسيط للخادم (اختياري)
+// ---------- فحص الخادم ----------
+
 async function pingOnce(){
   try{
     const res = await fetch(`${API_BASE}/health`,{cache:"no-store"});
     await res.json().catch(()=>({}));
   }catch(e){
-    // نطنش
+    // نطنّش
   }
 }
 
-// ============ إرسال السؤال ============
+// ---------- إرسال السؤال ----------
 
 async function ask(){
   if(!elInput){
@@ -219,11 +222,9 @@ async function ask(){
     return;
   }
 
-  // نضيف سؤال الطالبة
   addMessage(q,"user");
   elInput.value = "";
 
-  // رسالة "جاري التفكير"
   const thinking = document.createElement("div");
   thinking.className = "message assistant";
   thinking.textContent = "… جاري التفكير";
@@ -240,7 +241,6 @@ async function ask(){
       body:JSON.stringify(payload)
     }).catch(()=>null);
 
-    // لو /api/chat مو موجود، نجرب /ask القديم
     if(!resp || resp.status === 404){
       resp = await fetch(`${API_BASE}/ask`,{
         method:"POST",
@@ -278,7 +278,7 @@ async function ask(){
   }
 }
 
-// ============ السؤال الصوتي (STT) ============
+// ---------- السؤال الصوتي (STT) ----------
 
 let recognition = null;
 let listening = false;
@@ -330,7 +330,7 @@ function toggleListening(){
   }
 }
 
-// ============ ربط الأحداث ============
+// ---------- ربط الأحداث ----------
 
 function wire(){
   if(elForm){
@@ -340,7 +340,6 @@ function wire(){
     });
   }
 
-  // زر "إرسال" إن وجد
   let elSend =
     document.querySelector("[data-send]") ||
     document.getElementById("btnSend");
@@ -372,7 +371,7 @@ function wire(){
 wire();
 pingOnce();
 
-// ============ الإجابة الصوتية (TTS) ============
+// ---------- الإجابة الصوتية (TTS) ----------
 
 (function(){
   if(!("speechSynthesis" in window)) return;
@@ -406,36 +405,31 @@ pingOnce();
     });
   }
 
-  // تجهيز النص قبل نطقه
+  // تجهيز النص قبل النطق
   function prepareForSpeech(text){
     let t = text || "";
     if(/جاري التفكير/.test(t)) return "";
     if(/⚠/.test(t)) return "";
 
-    // حذف الروابط والكلام الإنجليزي الطويل
-    t = t.replace(/https?:\/\/\S+/g," ");
-    t = t.replace(/[A-Za-z0-9]{3,}/g," ");
+    t = t.replace(/https?:\/\/\S+/g," ");      // الروابط
+    t = t.replace(/[A-Za-z0-9]{3,}/g," ");    // كلمات إنجليزية طويلة
 
-    // أوامر لايتك
     t = t.replace(/\\frac/g," كسر ");
     t = t.replace(/\\/g," ");
 
-    // الضرب والقسمة والمساواة والجمع
     t = t
       .replace(/\//g," على ")
       .replace(/\*/g," ضرب ")
       .replace(/=/g," يساوي ")
       .replace(/\+/g," زائد ");
 
-    // ٣ × ٢ بين أعداد (سواء x أو ×)
+    // ٣ × ٢ بين أعداد
     t = t.replace(/([0-9٠-٩]+)\s*[x×]\s*([0-9٠-٩]+)/g,"$1 ضرب $2");
 
-    // ناقص فقط بين أعداد (٣ - ٢)
+    // ناقص فقط بين أعداد
     t = t.replace(/([0-9٠-٩]+)\s*-\s*([0-9٠-٩]+)/g,"$1 ناقص $2");
-    // أي شرطات ثانية (قوائم، - ١٢ حرفًا) نخليها مسافة
-    t = t.replace(/-/g," ");
+    t = t.replace(/-/g," ");   // الباقي شرطات عادية
 
-    // إزالة رموز لا نحتاجها
     t = t.replace(/[\[\]\{\}\(\)\|\_\^\~]/g," ");
     t = t.replace(/[.,;:،؛]{2,}/g,"، ");
     t = t.replace(/\s{2,}/g," ").trim();
@@ -456,12 +450,9 @@ pingOnce();
       u.rate = 1;
       u.pitch = 1;
       speechSynthesis.speak(u);
-    }catch(e){
-      // نطنش
-    }
+    }catch(e){}
   }
 
-  // مراقبة الرسائل الجديدة من دُرّى
   const target = elMessages || document.body;
   const observer = new MutationObserver(muts=>{
     for(const m of muts){
