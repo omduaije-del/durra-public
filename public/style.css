@@ -1,105 +1,250 @@
-// =======================
-// دُرّى — واجهة مبسطة (سؤال نصي + زر سؤال صوتي خاص بنا)
-// =======================
-
-const API_BASE = "https://durra-server.onrender.com";
-
-// ========= أدوات تنسيق الإجابة =========
-
-// نهرب HTML عشان ما يصير أي إدخال خطير
-function escapeHtml(s) {
-  return String(s)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
+:root{
+  --bg1:#0e1b2d;
+  --bg2:#1b2b44;
+  --card:#0f172a;
+  --edge:#213047;
+  --txt:#f8fafc;
+  --muted:#cbd5e1;
+  --acc1:#38bdf8;
+  --acc2:#a78bfa;
 }
 
-// تحويل الأرقام 0-9 إلى أرقام عربية ٠١٢٣٤٥٦٧٨٩
-function toArabicDigits(text) {
-  const map = "٠١٢٣٤٥٦٧٨٩";
-  return text.replace(/[0-9]/g, (d) => map[d]);
+*{box-sizing:border-box}
+html,body{height:100%}
+
+body{
+  margin:0;
+  font-family:"Tajawal", system-ui, Segoe UI, Arial;
+  background:
+    radial-gradient(1200px 500px at 50% -200px, rgba(56,189,248,.18), transparent),
+    linear-gradient(135deg, var(--bg1), var(--bg2));
+  color:var(--txt);
+  min-height:100vh;
+  display:flex;
 }
 
-// تحويل المتغيرات والرموز إلى أسلوب عربي أقرب لمناهج الخليج
-function localizeMathSymbols(text) {
-  if (!text) return "";
-
-  let t = text;
-
-  // x كس متغير → س (مع محاولة تجنّب الكلمات الإنجليزية)
-  // x مفردة لوحدها
-  t = t.replace(/\bx\b/g, "س");
-  // رقم متبوع بـ x مثل 2x
-  t = t.replace(/(\d)\s*x\b/g, "$1س");
-  // x قبل علامة تشغيل أو مساواة
-  t = t.replace(/x(?=\s*[\+\-\*\/=)\]])/g, "س");
-
-  // أوامر لاتِك شائعة
-  t = t.replace(/\\cdot/g, " × ");
-  t = t.replace(/\\sqrt/g, " √ ");
-
-  // في النهاية نحول الأرقام إلى أرقام عربية
-  t = toArabicDigits(t);
-
-  return t;
+.wrapper{
+  max-width:980px;
+  width:100%;
+  margin:auto;
+  padding:20px;
 }
 
-// دالة تنظيف نص الإجابة من الرموز الزائدة (Markdown + LaTeX ثقيل)
-function cleanAnswer(text) {
-  if (!text) return "";
-  let cleaned = text;
-
-  // إزالة أي كود محصور بين ```
-  cleaned = cleaned.replace(/```[\s\S]*?```/g, "");
-
-  // إزالة عناوين Markdown (#, ##, ###) في بداية السطر
-  cleaned = cleaned.replace(/^[ \t]*#{1,6}[ \t]*/gm, "");
-
-  // إزالة النجوم ** من التنسيق
-  cleaned = cleaned.replace(/\*\*/g, "");
-
-  // إزالة الرموز \[ \] \( \)
-  cleaned = cleaned.replace(/\\[\[\]\(\)]/g, "");
-
-  // استبدال \\ بسطر جديد
-  cleaned = cleaned.replace(/\\\\/g, "\n");
-
-  // تبسيط مسافات متكررة
-  cleaned = cleaned.replace(/[ \t]+/g, " ");
-
-  // أسطر فارغة متكررة → سطرين فقط
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
-
-  // في النهاية نطبّق التعريب الرياضي (س، أرقام عربية، × …)
-  cleaned = localizeMathSymbols(cleaned);
-
-  return cleaned.trim();
+/* الهيدر والصورة */
+.hero{
+  text-align:center;
+  margin:10px 0 16px;
 }
 
-// تحويل الكسور والأسس إلى HTML بشكل مرتب
-function fractionsAndPowersToHtml(txt) {
-  // 1) نهرب النص كله أولًا
-  let t = escapeHtml(txt);
+.avatar{
+  width:160px;
+  height:160px;
+  margin:14px auto 10px;
+  border-radius:50%;
+  overflow:hidden;
+  box-shadow:0 0 0 6px rgba(255,255,255,.15);
+}
 
-  // 2) نحول \frac{a}{b} إلى وسم جزء كسري مؤقت
-  t = t.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, (_, a, b) => {
-    return `[[FRAC:${escapeHtml(a)}|${escapeHtml(b)}]]`;
-  });
+.avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
 
-  // 3) نحاول أيضًا تحويل صيغ a / b القصيرة إلى كسر
-  t = t.replace(
-    /(^|[\s(\[])([^()\s]{1,12})[ \t]*\/[ \t]*([^()\s]{1,12})(?=([\s)\].,!?؛،]|$))/g,
-    (m, lead, A, B, tail) => {
-      return `${lead}[[FRAC:${escapeHtml(A)}|${escapeHtml(B)}]]${tail || ""}`;
-    }
-  );
+h1{
+  margin:8px 0 4px;
+}
 
-  // 4) نضيف placeholder للأسس: base^exp → [[POW:base|exp]]
-  // نسمح بقاعدة قصيرة (رقم/س/قوس) وأس أس قصير
-  t = t.replace(
-    /(\d+|[٠١٢٣٤٥٦٧٨٩]+|س|\([^()]+\))\^([0-9٠١٢٣٤٥٦٧٨٩]+)/g,
-    (m, base, exp) => {
-      return `[[POW:${base}|${exp}]]`;
-    }
+.sub{
+  color:var(--muted);
+  margin:0 0 10px;
+  font-size:14px;
+}
+
+/* صف التحكمات: السؤال الصوتي – الإجابة الصوتية – اختيار الصوت */
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  background:rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.08);
+  margin-bottom:10px;
+}
+
+.chk{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  background:#0b1625;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.06);
+  font-size:14px;
+}
+
+.sel{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  background:#0b1625;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.06);
+  font-size:14px;
+}
+
+.sel select{
+  background:#0b1625;
+  color:var(--txt);
+  border:0;
+  outline:none;
+}
+
+/* أزرار ابدأ / إيقاف (الميكروفون) */
+.micbar{
+  display:flex;
+  gap:8px;
+  margin-inline-start:auto;
+}
+
+.micbar button{
+  padding:10px 14px;
+  border:0;
+  border-radius:10px;
+  background:#122235;
+  color:var(--txt);
+  cursor:pointer;
+}
+
+.micbar button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* سطر إدخال السؤال وزر "اسألني" */
+.ask{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  background:rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.ask input{
+  flex:1;
+  padding:12px 14px;
+  border:0;
+  border-radius:10px;
+  background:#0b1625;
+  color:var(--txt);
+  outline:none;
+}
+
+.ask button{
+  padding:12px 18px;
+  border:0;
+  border-radius:12px;
+  background:linear-gradient(135deg, var(--acc1), var(--acc2));
+  color:#091420;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.ask button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* المربع اللي كان أزرق: خليناه شفاف وصغير */
+.panel{
+  display: contents;
+}
+
+/* نص الإجابة نفسه */
+.result{
+  white-space:pre-wrap;
+  line-height:1.9;
+}
+
+/* إخفاء شريط حالة السيرفر القديم لو موجود */
+#serverStatus{
+  display:none;
+}
+/* === تنسيق أزرار سماع الصوت والإيقاف فقط === */
+
+#btnMic,
+#btnStop{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+
+  padding:4px 10px;
+  font-size:0.8rem;        /* يصغر النص والأيقونة شوي */
+  border-radius:999px;     /* كبسولة ناعمة */
+
+  border:1px solid rgba(56,189,248,0.8);   /* إطار أزرق ناعم */
+  background:#020617;                       /* خلفية غامقة تشبه المنصّة */
+  color:#e5e7eb;                            /* نص فاتح */
+
+  margin-top:4px;
+  margin-inline-start:6px;  /* تبعد الأزرار شوي عن باقي العناصر */
+
+  cursor:pointer;
+  transition:transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+#btnMic:hover,
+#btnStop:hover{
+  opacity:1;
+  box-shadow:0 3px 10px rgba(15,23,42,0.6);
+  transform:translateY(-1px);
+}
+
+#btnMic:active,
+#btnStop:active{
+  transform:scale(0.97);
+}
+/* إعادة حركة فقاعة دُرى بدون لمس الأزرار */
+
+/* نطبّق الحركة على صورة durra.png فقط */
+img[src*="durra.png"]{
+  animation:durra-bubble 4s ease-in-out infinite;
+}
+
+/* تعريف حركة الفقاعة */
+@keyframes durra-bubble{
+  0%{
+    transform:translateY(0);
+  }
+  50%{
+    transform:translateY(-6px);
+  }
+  100%{
+    transform:translateY(0);
+  }
+}
+/* كسر بسيط فوق بعض للإجابات */
+.frac{
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-size:0.95em;
+  line-height:1.1;
+  vertical-align:middle;
+  margin:0 2px;
+}
+.frac .top{
+  border-bottom:1px solid currentColor;
+  padding:0 2px 1px;
+}
+.frac .bottom{
+  padding:1px 2px 0;
+}
