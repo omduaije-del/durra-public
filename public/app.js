@@ -1,10 +1,10 @@
 // =======================
-// دُرّى — واجهة مبسّطة (سؤال نصي + سؤال صوتي + قراءة صوتية للإجابة)
+// دُرّى — واجهة مبسّطة لمعلمـة الرياضيات الذكية
 // =======================
 
 const API_BASE = "https://durra-server.onrender.com";
 
-// ========== عناصر الصفحة الأساسية ==========
+// عناصر الصفحة الأساسية
 const elForm =
   document.getElementById("form") ||
   document.querySelector("form");
@@ -17,83 +17,120 @@ let elMessages =
   document.getElementById("messages") ||
   document.querySelector(".messages");
 
-// لو ما لقينا صندوق رسائل، نخلق واحد بسيط
+// لو ما فيه صندوق رسائل، نخلق واحد بسيط تحت الفورم
 if (!elMessages) {
   elMessages = document.createElement("div");
   elMessages.id = "messages";
   elMessages.style.cssText =
-    "max-width:980px;margin:24px auto 0;padding:16px 18px;border-radius:16px;border:1px solid #1e293b;background:#020617;color:#e5e7eb;font-size:17px;line-height:1.9;white-space:pre-wrap;min-height:80px;";
+    "max-height:420px;overflow:auto;margin-top:24px;padding:18px;border-radius:18px;border:1px solid #1e293b;background:#020617cc;color:#e5e7eb;font-size:18px;line-height:1.9;";
   (elForm?.parentElement || document.body).appendChild(elMessages);
 }
 
-// ========== دالة تنظيف وتحسين نص الإجابة ==========
-function cleanAnswer(raw) {
-  if (!raw) return "";
+// أزرار الصوت (سيتــم إنشاؤها لاحقًا لو مش موجودة)
+let elMicBtn =
+  document.getElementById("btnMic") ||
+  document.querySelector("[data-role='mic']");
 
-  let t = String(raw);
+let elReadBtn =
+  document.getElementById("btnRead") ||
+  document.querySelector("[data-role='tts']");
 
-  // نحذف أي بلوك كود ```...```
-  t = t.replace(/```[\s\S]*?```/g, "");
+// لتخزين آخر إجابة من دُرّى (للصوت)
+let lastAssistantText = "";
 
-  // نحذف محددات المعادلات $$ أو $
-  t = t.replace(/\$\$?/g, "");
+// =======================
+// دوال مساعدة لتنظيف النص
+// =======================
 
-  // نحذف تنسيقات ماركداون البسيطة
-  t = t.replace(/\*\*/g, "");
-  t = t.replace(/`/g, "");
+// دالة تنظّف النص من الرموز المزعجة قبل العرض
+function cleanText(text) {
+  if (!text) return "";
 
-  // نحول بعض أوامر LaTeX لشيء مقروء بالعربي
-  t = t.replace(/\\cdot/g, " × ");
-  t = t.replace(/\\times/g, " × ");
-  t = t.replace(/\\div/g, " ÷ ");
-  t = t.replace(/\\sqrt/g, " جذر ");
-  t = t.replace(/\\leq/g, " ≤ ");
-  t = t.replace(/\\geq/g, " ≥ ");
-
-  // \frac{a}{b}  =>  a على b
-  t = t.replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g, "$1 على $2");
-
-  // نحذف الأقواس المائلة من LaTeX مثل \( \) \[ \]
-  t = t.replace(/\\[\[\]\(\)]/g, "");
-
-  // استبدال \\ بسطر جديد
-  t = t.replace(/\\\\/g, "\n");
-
-  // نحول النجمة * إلى × بين الأرقام
-  t = t.replace(/([0-9])\*([0-9])/g, "$1 × $2");
-
-  // نحول x الإنجليزية إلى س (متغير)
-  t = t.replace(/[xX]/g, " س ");
-
-  // نحول الأرقام 0-9 إلى أرقام عربية ٠-٩
-  const arabicDigits = { "0":"٠","1":"١","2":"٢","3":"٣","4":"٤","5":"٥","6":"٦","7":"٧","8":"٨","9":"٩" };
-  t = t.replace(/[0-9]/g, d => arabicDigits[d] || d);
-
-  // نقلل المسافات والأسطر الفارغة
-  t = t.replace(/[ \t]+/g, " ");
-  t = t.replace(/\n{3,}/g, "\n\n");
-
-  return t.trim();
+  return text
+    // إزالة كتل الكود إن وجدت ```...```
+    .replace(/```[\s\S]*?```/g, "")
+    // إزالة عناوين ماركداون ### و ## و # ونبدّلها بسطر جديد
+    .replace(/#+\s*/g, "\n")
+    // إزالة ** من التنسيق
+    .replace(/\*\*/g, "")
+    // إزالة العلامات الزايدة من لاتِك
+    .replace(/\\left|\\right/g, "")
+    .replace(/\\cdot/g, " × ")
+    .replace(/\\times/g, " × ")
+    .replace(/\\div/g, " ÷ ")
+    .replace(/\\sqrt/g, " جذر ")
+    .replace(/\\pm/g, " ± ")
+    .replace(/\\[\[\]\(\)]/g, "")
+    // حذف باك-تيك وبقية الزينة
+    .replace(/`/g, "")
+    // تقليل المسافات المكرّرة
+    .replace(/[ \t]+/g, " ")
+    // ترتيب الأسطر الفارغة
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
-// ========== دالة إضافة رسالة ==========
+// تحويل 2/3 أو ٢/٣ إلى كسر اعتيادي فوق بعض
+function renderFractions(text) {
+  if (!text) return "";
+
+  // أرقام عربية (0-9) أو هندية (٠-٩)
+  const fractionRegex = /([\d\u0660-\u0669]+)\s*\/\s*([\d\u0660-\u0669]+)/g;
+
+  return text.replace(
+    fractionRegex,
+    (match, top, bottom) =>
+      `<span class="frac"><span class="top">${top}</span><span class="bottom">${bottom}</span></span>`
+  );
+}
+
+// رسالة خطأ لطيفة للمستخدم (بدون فضايح الخادم 😄)
+function showFriendlyError() {
+  addMessage(
+    "⚠ تعذّر إكمال الإجابة الآن بسبب ضغط على الخادم. انتظر دقيقة ثم حاول مرة أخرى.",
+    "assistant"
+  );
+}
+
+// =======================
+// عرض الرسائل في الصندوق
+// =======================
+
 function addMessage(text, who = "assistant") {
   if (!elMessages) return;
 
   const div = document.createElement("div");
   div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.style.margin = "6px 0";
+  div.style.margin = "10px 0";
 
-  // نسمح بسطر جديد لكن بدون HTML خطير
-  div.textContent = text;
+  if (who === "assistant") {
+    const cleaned = cleanText(text || "");
+    const withFracs = renderFractions(cleaned);
+    div.innerHTML = withFracs || "…";
+    lastAssistantText = cleaned;
+  } else {
+    div.textContent = text || "";
+  }
+
   elMessages.appendChild(div);
   elMessages.scrollTop = elMessages.scrollHeight;
 }
 
-// نخزن آخر إجابة علشان القراءة الصوتية
-let lastAnswerText = "";
+// =======================
+// الاتصال بالخادم
+// =======================
 
-// ========== الدالة الرئيسية: إرسال السؤال ==========
+async function pingOnce() {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    console.log("[PING]", data);
+  } catch (e) {
+    console.warn("[PING_ERROR]", e);
+  }
+}
+
+// الدالة الأساسية: إرسال السؤال وقراءة الإجابة
 async function ask() {
   if (!elInput) {
     addMessage("⚠ لم أجد خانة السؤال في الصفحة.", "assistant");
@@ -106,79 +143,79 @@ async function ask() {
     return;
   }
 
-  // نبدأ سؤال جديد: نمسح الرسائل السابقة
+  // مسح الأسئلة/الإجابات السابقة عند كل سؤال جديد
   elMessages.innerHTML = "";
-  lastAnswerText = "";
 
-  // نعرض السؤال أعلى الإجابة كمرجع
-  addMessage("❓ السؤال: " + q, "user");
-
-  // نفرّغ خانة الإدخال
+  // عرض سؤال المستخدم
+  addMessage(q, "user");
   elInput.value = "";
 
-  // رسالة "جاري التفكير..."
+  // رسالة "جاري التفكير"
   const thinking = document.createElement("div");
   thinking.className = "message assistant";
   thinking.textContent = "… جاري التفكير";
-  thinking.style.margin = "6px 0";
+  thinking.style.margin = "10px 0";
   elMessages.appendChild(thinking);
   elMessages.scrollTop = elMessages.scrollHeight;
 
   try {
-    const payload = { question: q };
+    const payload = { message: q, history: [] };
 
-    const resp = await fetch(`${API_BASE}/ask`, {
+    let resp = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
-    });
+    }).catch(() => null);
+
+    if (!resp || !resp.ok) {
+      // جرّبي المسار الاحتياطي /ask
+      resp = await fetch(`${API_BASE}/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q }),
+      }).catch(() => null);
+    }
+
+    thinking.remove();
+
+    if (!resp) {
+      showFriendlyError();
+      return;
+    }
 
     const data = await resp.json().catch(() => ({}));
-    thinking.remove();
 
-    // لو الخادم أرسل رسالة جاهزة للمستخدم
-    if (data && data.userMessage) {
-      const nice = cleanAnswer(data.userMessage);
-      lastAnswerText = nice;
-      addMessage(nice || "تعذّر إكمال الإجابة الآن.", "assistant");
-      return;
-    }
-
-    const raw =
+    const reply =
       (data && (data.reply || data.answer || data.text)) || "";
 
-    if (!raw) {
-      const msg =
-        "⚠ تعذّر إكمال الإجابة الآن بسبب ضغط على الخادم. انتظر دقيقة ثم حاول مرة أخرى.";
-      lastAnswerText = msg;
-      addMessage(msg, "assistant");
-      return;
+    if (reply) {
+      addMessage(reply, "assistant");
+    } else {
+      showFriendlyError();
     }
-
-    const nice = cleanAnswer(raw);
-    lastAnswerText = nice;
-    addMessage(nice, "assistant");
   } catch (e) {
     console.error("ASK_ERROR", e);
-    thinking.remove();
-    const msg =
-      "⚠ تعذّر إكمال الإجابة الآن بسبب خطأ مفاجئ في الخادم. انتظر قليلًا ثم حاول مرة أخرى.";
-    lastAnswerText = msg;
-    addMessage(msg, "assistant");
+    try { thinking.remove(); } catch (_) {}
+    showFriendlyError();
   }
 }
 
-// ========== السؤال الصوتي (تحويل الكلام إلى نص) ==========
+// =======================
+// سؤال صوتي (SpeechRecognition)
+// =======================
+
 let recognition = null;
 let listening = false;
 
 function ensureRecognition() {
   if (recognition) return recognition;
+
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     alert("العفو، المتصفح لا يدعم السؤال الصوتي (جرّب Google Chrome).");
     return null;
   }
+
   const rec = new SR();
   rec.lang = "ar-SA";
   rec.interimResults = false;
@@ -186,25 +223,23 @@ function ensureRecognition() {
 
   rec.onstart = () => {
     listening = true;
-    if (btnAskVoice) btnAskVoice.textContent = "⏹ إيقاف الاستماع";
+    if (elMicBtn) elMicBtn.textContent = "إيقاف التسجيل 🎙";
   };
 
   rec.onresult = (e) => {
     const txt = (e.results?.[0]?.[0]?.transcript || "").trim();
     if (elInput) elInput.value = txt;
-    if (txt) {
-      ask();
-    }
+    if (txt) ask();
   };
 
   rec.onerror = (e) => {
     console.warn("STT_ERROR:", e.error);
-    addMessage("⚠ تعذّر الاستماع، حاوِل مرة أخرى.", "assistant");
+    addMessage("⚠ تعذّر الاستماع، حاول مرة أخرى.", "assistant");
   };
 
   rec.onend = () => {
     listening = false;
-    if (btnAskVoice) btnAskVoice.textContent = "🎤 سؤال صوتي";
+    if (elMicBtn) elMicBtn.textContent = "سؤال صوتي 🎤";
   };
 
   recognition = rec;
@@ -215,95 +250,125 @@ function toggleListening() {
   const rec = ensureRecognition();
   if (!rec) return;
   try {
-    if (!listening) {
-      rec.start();
-    } else {
-      rec.stop();
-    }
+    if (!listening) rec.start();
+    else rec.stop();
   } catch (e) {
     console.warn("STT_TOGGLE_ERROR:", e);
   }
 }
 
-// ========== القراءة الصوتية للإجابة (Text-to-Speech) ==========
-let ttsEnabled = true;
-let currentUtterance = null;
+// =======================
+// قراءة الإجابة صوتيًا (SpeechSynthesis)
+// =======================
 
 function speakAnswer() {
-  if (!lastAnswerText) {
-    addMessage("لا توجد إجابة لقراءتها الآن.", "assistant");
+  if (!lastAssistantText) {
+    addMessage("ما عندي إجابة أقرأها الآن.", "assistant");
     return;
   }
   if (!("speechSynthesis" in window)) {
-    alert("العفو، المتصفح لا يدعم قراءة الإجابة صوتيًا.");
+    alert("العفو، المتصفح لا يدعم قراءة الإجابات صوتيًا.");
     return;
   }
+
   try {
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(lastAnswerText);
+    const u = new SpeechSynthesisUtterance(lastAssistantText);
     u.lang = "ar-SA";
     u.rate = 1;
     u.pitch = 1;
-    currentUtterance = u;
     window.speechSynthesis.speak(u);
   } catch (e) {
     console.warn("TTS_ERROR", e);
   }
 }
 
-function stopSpeaking() {
-  try {
-    window.speechSynthesis.cancel();
-  } catch (e) {
-    console.warn("TTS_CANCEL_ERROR", e);
+// =======================
+// إنشاء أزرار الصوت تحت زر "إرسال"
+// =======================
+
+function ensureVoiceButtons(elSend) {
+  if (!elSend) return;
+
+  // نحاول نلقى شريط قديم
+  let bar = document.getElementById("voiceBar");
+
+  if (!bar) {
+    bar = document.createElement("div");
+    bar.id = "voiceBar";
+    bar.style.cssText =
+      "margin-top:10px;display:flex;gap:10px;justify-content:flex-end;";
+
+    // نضعه تحت سطر السؤال مباشرة
+    const row = elSend.closest(".ask") || elSend.parentElement || elForm || document.body;
+    const parent = row.parentElement || document.body;
+    parent.insertBefore(bar, row.nextSibling);
   }
+
+  // زر السؤال الصوتي
+  if (!document.getElementById("btnMic")) {
+    elMicBtn = document.createElement("button");
+    elMicBtn.id = "btnMic";
+    elMicBtn.type = "button";
+    elMicBtn.textContent = "سؤال صوتي 🎤";
+    elMicBtn.style.cssText =
+      "padding:8px 14px;border-radius:10px;border:1px solid #0ea5e9;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:14px;";
+    bar.appendChild(elMicBtn);
+  } else {
+    elMicBtn = document.getElementById("btnMic");
+  }
+
+  // زر قراءة الإجابة
+  if (!document.getElementById("btnRead")) {
+    elReadBtn = document.createElement("button");
+    elReadBtn.id = "btnRead";
+    elReadBtn.type = "button";
+    elReadBtn.textContent = "قراءة الإجابة 🔊";
+    elReadBtn.style.cssText =
+      "padding:8px 14px;border-radius:10px;border:1px solid #22c55e;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:14px;";
+    bar.appendChild(elReadBtn);
+  } else {
+    elReadBtn = document.getElementById("btnRead");
+  }
+
+  // ربط الأحداث
+  elMicBtn.onclick = toggleListening;
+  elReadBtn.onclick = speakAnswer;
 }
 
-// ========== إنشاء الأزرار وتوصيل الأحداث ==========
-let btnAskVoice = document.getElementById("btnAskVoice");
-let btnReadAnswer = document.getElementById("btnReadAnswer");
+// =======================
+// ربط الأحداث العامة
+// =======================
 
-(function setupButtons() {
-  const buttonsWrapper = document.createElement("div");
-  buttonsWrapper.style.cssText =
-    "display:flex;gap:8px;margin-top:10px;justify-content:flex-end;";
-
-  const parent = elForm || elInput?.parentElement || document.body;
-
-  if (!btnAskVoice) {
-    btnAskVoice = document.createElement("button");
-    btnAskVoice.id = "btnAskVoice";
-    btnAskVoice.type = "button";
-    btnAskVoice.textContent = "🎤 سؤال صوتي";
-    btnAskVoice.style.cssText =
-      "padding:9px 14px;border-radius:10px;border:1px solid #1d4ed8;background:#020617;color:#e5e7eb;cursor:pointer;font-size:14px;";
-    buttonsWrapper.appendChild(btnAskVoice);
-  }
-
-  if (!btnReadAnswer) {
-    btnReadAnswer = document.createElement("button");
-    btnReadAnswer.id = "btnReadAnswer";
-    btnReadAnswer.type = "button";
-    btnReadAnswer.textContent = "🔊 قراءة الإجابة";
-    btnReadAnswer.style.cssText =
-      "padding:9px 14px;border-radius:10px;border:1px solid #22c55e;background:#022c22;color:#dcfce7;cursor:pointer;font-size:14px;";
-    buttonsWrapper.appendChild(btnReadAnswer);
-  }
-
-  if (buttonsWrapper.children.length > 0) {
-    parent.appendChild(buttonsWrapper);
-  }
-})();
-
-// ========== ربط الأحداث الرئيسية ==========
 function wire() {
   if (elForm) {
     elForm.addEventListener("submit", (e) => {
       e.preventDefault();
       ask();
     });
-  } else if (elInput) {
-    // في حال ما فيه فورم، نرسل بالسطر "إنتر"
+  }
+
+  // زر إرسال (نبحث عنه حتى لو مو داخل الفورم)
+  let elSend =
+    document.querySelector("[data-send]") ||
+    document.getElementById("btnSend");
+
+  if (!elSend) {
+    const buttons = Array.from(document.querySelectorAll("button"));
+    elSend = buttons.find((b) =>
+      (b.textContent || "").trim().includes("إرسال")
+    );
+  }
+
+  if (elSend) {
+    elSend.setAttribute("type", "button");
+    elSend.addEventListener("click", () => ask());
+
+    // هنا نضمن إنشاء أزرار الصوت تحت زر إرسال
+    ensureVoiceButtons(elSend);
+  }
+
+  if (elInput) {
     elInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
@@ -312,55 +377,12 @@ function wire() {
     });
   }
 
-  if (btnAskVoice) {
-    btnAskVoice.addEventListener("click", toggleListening);
-  }
-
-  if (btnReadAnswer) {
-    btnReadAnswer.addEventListener("click", () => {
-      if (window.speechSynthesis.speaking) {
-        stopSpeaking();
-      } else {
-        speakAnswer();
-      }
-    });
-  }
-
-  console.log("[DURRA] wired: form=%s input=%s messages=%s",
-    !!elForm, !!elInput, !!elMessages);
+  console.log(
+    "[WIRE] form:", !!elForm,
+    "input:", !!elInput,
+    "messages:", !!elMessages
+  );
 }
 
 wire();
-
-// ===== نقل زر "سؤال صوتي" و "قراءة الإجابة" تحت زر "إرسال" =====
-window.addEventListener("load", () => {
-  const sendBtn =
-    document.getElementById("btnSend") ||
-    document.querySelector("[data-send]");
-
-  const micBtn =
-    document.getElementById("btnMic") ||
-    document.querySelector("[data-mic]");
-
-  const readBtn =
-    document.getElementById("btnReadAnswer") ||
-    document.querySelector("[data-tts]");
-
-  if (!sendBtn || !micBtn || !readBtn) return;
-
-  // نخلق شريط صغير تحت خانة السؤال
-  const bar = document.createElement("div");
-  bar.style.display = "flex";
-  bar.style.justifyContent = "flex-end";
-  bar.style.gap = "8px";
-  bar.style.marginTop = "8px";
-
-  bar.appendChild(readBtn);
-  bar.appendChild(micBtn);
-
-  // نحاول نحطه تحت صندوق السؤال مباشرة
-  const askBox = sendBtn.closest(".ask") || sendBtn.parentElement;
-  if (askBox && askBox.parentElement) {
-    askBox.parentElement.insertBefore(bar, askBox.nextSibling);
-  }
-});
+pingOnce();
