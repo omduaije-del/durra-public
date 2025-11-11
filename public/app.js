@@ -37,6 +37,23 @@ function cleanAnswer(text) {
   return cleaned.trim();
 }
 
+// دالة لتحويل الإجابة المنظّفة إلى HTML مع كسور فوق بعض
+function formatAnswer(text) {
+  if (!text) return "";
+
+  let t = cleanAnswer(text);
+
+  // تحويل الكسور من شكل a / b إلى كسر فوق بعض
+  t = t.replace(/(\d+)\s*\/\s*(\d+)/g, (match, top, bottom) => {
+    return `<span class="frac"><span class="top">${top}</span><span class="bottom">${bottom}</span></span>`;
+  });
+
+  // الأسطر الجديدة تتحول إلى <br>
+  t = t.replace(/\n/g, "<br>");
+
+  return t;
+}
+
 // نحاول نلقَى العناصر الرئيسية في الصفحة
 const elForm =
   document.getElementById("form") ||
@@ -84,26 +101,28 @@ function addMessage(text, who = "assistant") {
   div.className = "message " + (who === "user" ? "user" : "assistant");
   div.style.margin = "8px 0";
 
-  // هنا السحر: ننظف إجابات دُرّى فقط، ونترك أسئلة الطالبة كما هي
-  const finalText = (who === "assistant") ? cleanAnswer(text) : text;
-  div.textContent = finalText;
+  if (who === "user") {
+    // أسئلة الطالبة: نص عادي
+    div.textContent = text;
+  } else {
+    // إجابات دُرّى: HTML مرتب مع كسور فوق بعض
+    div.innerHTML = formatAnswer(text);
+  }
 
   elMessages.appendChild(div);
   elMessages.scrollTop = elMessages.scrollHeight;
 }
 
-// ============== دالة تنظيف النص (قديمة تُستخدم مع show) ==============
+// ============== دالة تنظيف النص القديمة (للاستعمال مع show) ==============
 function cleanText(text) {
   if (!text) return "";
 
   return text
-    // نزيل علامات الماث والـ Markdown الزايدة
     .replace(/\$\$/g, "")
     .replace(/\$/g, "")
     .replace(/\*\*/g, "")
     .replace(/`/g, "")
     .replace(/_/g, " ")
-    // نحذف أو نلطف أوامر لاتِك كثير
     .replace(/\\frac/g, " كسر ")
     .replace(/\\sqrt/g, " جذر ")
     .replace(/\\cdot/g, " × ")
@@ -117,10 +136,10 @@ function cleanText(text) {
 // ============== دالة عرض النص ==============
 function show(text) {
   const clean = cleanText(text);
+  // لو فيه عنصر مخصص للإجابة نستخدمه، وإلا نعرض كرسالة مساعدة
   if (typeof elAnswer !== "undefined" && elAnswer) {
     elAnswer.textContent = clean;
   } else {
-    // لو ما فيه elAnswer نعرضه كرسالة مساعدة عادية
     addMessage(clean, "assistant");
   }
 }
@@ -192,7 +211,7 @@ async function ask() {
       (data && (data.reply || data.answer || data.text)) || null;
 
     if (reply) {
-      // الآن الرد يمر عبر addMessage => cleanAnswer قبل ما ينعرض
+      // الرد يمر عبر addMessage => formatAnswer => cleanAnswer
       addMessage(reply, "assistant");
     } else if (data && data.error) {
       show("⚠ الخادم قال: " + data.error);
