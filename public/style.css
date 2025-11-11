@@ -52,9 +52,7 @@ body{
   display:block;
 }
 
-h1{
-  margin:8px 0 4px;
-}
+h1{ margin:8px 0 4px; }
 
 .sub{
   color:var(--muted);
@@ -62,68 +60,11 @@ h1{
   font-size:14px;
 }
 
-/* صف التحكمات: السؤال الصوتي – الإجابة الصوتية – اختيار الصوت */
-.controls{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  align-items:center;
-  background:rgba(255,255,255,.06);
-  border-radius:14px;
-  padding:10px;
-  border:1px solid rgba(255,255,255,.08);
-  margin-bottom:10px;
-}
+/* صف التحكمات القديم (الإجابة الصوتية/لهجتي) — نخفيه */
+.controls{ display:none; }
 
-.chk{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  padding:6px 10px;
-  background:#0b1625;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.06);
-  font-size:14px;
-}
-
-.sel{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  padding:6px 10px;
-  background:#0b1625;
-  border-radius:10px;
-  border:1px solid rgba(255,255,255,.06);
-  font-size:14px;
-}
-
-.sel select{
-  background:#0b1625;
-  color:var(--txt);
-  border:0;
-  outline:none;
-}
-
-/* أزرار ابدأ / إيقاف (الميكروفون) */
-.micbar{
-  display:flex;
-  gap:8px;
-  margin-inline-start:auto;
-}
-
-.micbar button{
-  padding:10px 14px;
-  border:0;
-  border-radius:10px;
-  background:#122235;
-  color:var(--txt);
-  cursor:pointer;
-}
-
-.micbar button:disabled{
-  opacity:.6;
-  cursor:not-allowed;
-}
+/* شريط أزرار ابدأ/إيقاف القديم — نخفيه */
+.micbar{ display:none; }
 
 /* سطر إدخال السؤال وزر "اسألني" */
 .ask{
@@ -162,9 +103,7 @@ h1{
 }
 
 /* المربع اللي كان أزرق: خليناه شفاف وصغير */
-.panel{
-  display: contents;
-}
+.panel{ display:contents; }
 
 /* نص الإجابة نفسه (للنسخة القديمة) */
 .result{
@@ -173,65 +112,40 @@ h1{
 }
 
 /* إخفاء شريط حالة السيرفر القديم لو موجود */
-#serverStatus{
-  display:none;
-}
+#serverStatus{ display:none; }
 
-/* === تنسيق أزرار سماع الصوت والإيقاف فقط === */
+/* === أزرار الميكروفون وتبديل الرد الصوتي (جديدة بجانب سؤال صوتي) === */
 #btnMic,
-#btnStop{
+#btnTTS{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:4px;
-
-  padding:4px 10px;
-  font-size:0.8rem;        /* يصغر النص والأيقونة شوي */
-  border-radius:999px;     /* كبسولة ناعمة */
-
-  border:1px solid rgba(56,189,248,0.8);   /* إطار أزرق ناعم */
-  background:#020617;                       /* خلفية غامقة تشبه المنصّة */
-  color:#e5e7eb;                            /* نص فاتح */
-
+  gap:6px;
+  padding:6px 12px;
+  font-size:.85rem;
+  border-radius:999px;
+  border:1px solid rgba(56,189,248,0.8);
+  background:#020617;
+  color:#e5e7eb;
   margin-top:4px;
-  margin-inline-start:6px;  /* تبعد الأزرار شوي عن باقي العناصر */
-
+  margin-inline-start:6px;
   cursor:pointer;
-  transition:transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+  transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease;
 }
 
-#btnMic:hover,
-#btnStop:hover{
-  opacity:1;
-  box-shadow:0 3px 10px rgba(15,23,42,0.6);
+#btnMic:hover,#btnTTS:hover{
+  box-shadow:0 3px 10px rgba(15,23,42,.6);
   transform:translateY(-1px);
 }
+#btnMic:active,#btnTTS:active{ transform:scale(.97); }
 
-#btnMic:active,
-#btnStop:active{
-  transform:scale(0.97);
-}
-
-/* إعادة حركة فقاعة دُرى بدون لمس الأزرار */
-/* نطبّق الحركة على صورة durra.png فقط */
-img[src*="durra.png"]{
-  animation:durra-bubble 4s ease-in-out infinite;
-}
-
-/* تعريف حركة الفقاعة */
+/* إعادة حركة فقاعة دُرى */
+img[src*="durra.png"]{ animation:durra-bubble 4s ease-in-out infinite; }
 @keyframes durra-bubble{
-  0%{
-    transform:translateY(0);
-  }
-  50%{
-    transform:translateY(-6px);
-  }
-  100%{
-    transform:translateY(0);
-  }
+  0%{transform:translateY(0)} 50%{transform:translateY(-6px)} 100%{transform:translateY(0)}
 }
 
-/* ===== مربع المحادثة للإجابات (messages) ===== */
+/* ===== مربع المحادثة للإجابات ===== */
 #messages{
   margin-top:12px;
   padding:12px 14px;
@@ -248,42 +162,23 @@ img[src*="durra.png"]{
   white-space:pre-wrap;
   font-size:15px;
 }
+.message.user{ color:var(--muted); text-align:right; }
+.message.assistant{ color:var(--txt); }
 
-.message.user{
-  color:var(--muted);
-  text-align:right;
-}
-
-.message.assistant{
-  color:var(--txt);
-}
-
-/* كسر بسيط فوق بعض للإجابات */
+/* كسر فوق بعض */
 .frac{
   display:inline-flex;
   flex-direction:column;
   align-items:center;
   justify-content:center;
-  font-size:0.95em;
+  font-size:.95em;
   line-height:1.1;
   vertical-align:middle;
   margin:0 2px;
 }
+.frac .top{ padding:0 2px 1px; }
+.frac .bar{ width:100%; border-top:1px solid currentColor; margin:1px 0; }
+.frac .bot,.frac .bottom{ padding:1px 2px 0; }
 
-/* بسط */
-.frac .top{
-  padding:0 2px 1px;
-}
-
-/* الخط الفاصل بين البسط والمقام */
-.frac .bar{
-  width:100%;
-  border-top:1px solid currentColor;
-  margin:1px 0;
-}
-
-/* مقام (ندعم كل من .bot و .bottom) */
-.frac .bot,
-.frac .bottom{
-  padding:1px 2px 0;
-}
+/* أسس */
+.pow sup{ font-size:.75em; vertical-align:super; }
