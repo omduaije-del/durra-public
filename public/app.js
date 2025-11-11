@@ -6,7 +6,6 @@
 const API_BASE = "https://durra-server.onrender.com";
 
 (function bootstrap(){
-  // ننتظر DOM يجهز عشان ما نقرأ عناصر قبل ما تنخلق
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initSafe);
   } else {
@@ -18,12 +17,11 @@ function initSafe(){
   try { coreInit(); }
   catch (e) {
     console.error("[Durra Init Error]", e);
-    // لا نفعل شيء آخر — الأمان أولًا
   }
 }
 
 function coreInit(){
-  // ---------- عناصر الصفحة الأصلية (لا نكسرها) ----------
+  // ---------- عناصر الصفحة الأصلية ----------
   const elForm =
     document.getElementById("form") ||
     document.querySelector("form");
@@ -37,13 +35,35 @@ function coreInit(){
     document.querySelector(".result") ||
     document.getElementById("answer");
 
-  // لو ما في .result نخلق بديل بسيط ما يزعج التصميم
+  let createdAnswerCard = false;
+
+  // لو ما في .result نخلق كرت أنيق مع مربع إجابة
   if (!elAnswer) {
+    const card = document.createElement("div");
+    card.id = "durraAnswerCard";
+    card.style.cssText = [
+      "margin-top:16px",
+      "padding:16px 18px",
+      "border-radius:16px",
+      "background:#020617cc",
+      "border:1px solid rgba(148,163,184,.5)",
+      "color:#e5e7eb",
+      "font-size:17px",
+      "line-height:1.8",
+      "direction:rtl",
+      "text-align:right",
+      "max-height:420px",
+      "overflow-y:auto",
+      "box-shadow:0 18px 40px rgba(15,23,42,.6)"
+    ].join(";");
+
     elAnswer = document.createElement("div");
     elAnswer.className = "result";
-    elAnswer.style.cssText =
-      "white-space:pre-wrap;line-height:1.9;margin-top:12px;padding:12px;border:1px solid rgba(148,163,184,.4);border-radius:12px;background:#020617cc;";
-    (elForm?.parentElement || document.body).appendChild(elAnswer);
+    elAnswer.style.cssText = "white-space:pre-wrap;line-height:1.9;";
+
+    card.appendChild(elAnswer);
+    (elForm?.parentElement || document.body).appendChild(card);
+    createdAnswerCard = true;
   }
 
   // صندوق «جاري التفكير» صغير
@@ -55,6 +75,8 @@ function coreInit(){
         thinking.textContent = "… جاري التفكير";
         thinking.style.opacity = ".75";
         thinking.style.marginTop = "8px";
+        thinking.style.direction = "rtl";
+        thinking.style.textAlign = "right";
         elAnswer.insertAdjacentElement("beforebegin", thinking);
       }
     } else {
@@ -214,7 +236,6 @@ function coreInit(){
       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); }
     });
   }
-  // زر إرسال إن وجد
   const elSend =
     document.querySelector("[data-send]") ||
     document.getElementById("btnSend");
@@ -223,7 +244,7 @@ function coreInit(){
     elSend.addEventListener("click", ask);
   }
 
-  // ---------- أزرار الصوت (تحت خانة السؤال، بشكل عامودي) ----------
+  // ---------- أزرار الصوت تحت خانة السؤال ----------
   let elMicBtn =
     document.getElementById("btnMic") ||
     document.querySelector("[data-mic]");
@@ -238,7 +259,7 @@ function coreInit(){
     (elInput?.parentElement || elForm || document.body).appendChild(tools);
   }
 
-  // نخلق الأزرار إذا مو موجودة (بدون ما نغيّر ستايلك)
+  // نخلق الأزرار إذا مو موجودة
   if (!elMicBtn) {
     elMicBtn = document.createElement("button");
     elMicBtn.id = "btnMic";
@@ -255,6 +276,25 @@ function coreInit(){
     tools.appendChild(elMicBtn);
     tools.appendChild(elTTSBtn);
   }
+
+  // ستايل مربّع ناعم للأزرار (يغطي على أي CSS قديم)
+  function styleAudioButton(btn){
+    if (!btn) return;
+    btn.style.display = "inline-flex";
+    btn.style.alignItems = "center";
+    btn.style.justifyContent = "center";
+    btn.style.gap = "4px";
+    btn.style.padding = "6px 10px";
+    btn.style.fontSize = "0.85rem";
+    btn.style.borderRadius = "10px";     // مربعات ناعمة، مو بيضاوية
+    btn.style.border = "1px solid rgba(56,189,248,0.8)";
+    btn.style.background = "#020617";
+    btn.style.color = "#e5e7eb";
+    btn.style.cursor = "pointer";
+    btn.style.transition = "transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease";
+  }
+  styleAudioButton(elMicBtn);
+  styleAudioButton(elTTSBtn);
 
   // STT
   let recognition = null, listening = false;
