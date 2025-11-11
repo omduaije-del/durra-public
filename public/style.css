@@ -1,9 +1,241 @@
-/* ===== تنسيق مربّع الإجابة والرسائل ===== */
+:root{
+  --bg1:#0e1b2d;
+  --bg2:#1b2b44;
+  --card:#0f172a;
+  --edge:#213047;
+  --txt:#f8fafc;
+  --muted:#cbd5e1;
+  --acc1:#38bdf8;
+  --acc2:#a78bfa;
+}
 
+*{box-sizing:border-box}
+html,body{height:100%}
+
+body{
+  margin:0;
+  font-family:"Tajawal", system-ui, Segoe UI, Arial;
+  background:
+    radial-gradient(1200px 500px at 50% -200px, rgba(56,189,248,.18), transparent),
+    linear-gradient(135deg, var(--bg1), var(--bg2));
+  color:var(--txt);
+  min-height:100vh;
+  display:flex;
+}
+
+.wrapper{
+  max-width:980px;
+  width:100%;
+  margin:auto;
+  padding:20px;
+}
+
+/* الهيدر والصورة */
+.hero{
+  text-align:center;
+  margin:10px 0 16px;
+}
+
+.avatar{
+  width:160px;
+  height:160px;
+  margin:14px auto 10px;
+  border-radius:50%;
+  overflow:hidden;
+  box-shadow:0 0 0 6px rgba(255,255,255,.15);
+}
+
+.avatar img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+h1{
+  margin:8px 0 4px;
+}
+
+.sub{
+  color:var(--muted);
+  margin:0 0 10px;
+  font-size:14px;
+}
+
+/* صف التحكمات: السؤال الصوتي – الإجابة الصوتية – اختيار الصوت */
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  align-items:center;
+  background:rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.08);
+  margin-bottom:10px;
+}
+
+.chk{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 10px;
+  background:#0b1625;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.06);
+  font-size:14px;
+}
+
+.sel{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  background:#0b1625;
+  border-radius:10px;
+  border:1px solid rgba(255,255,255,.06);
+  font-size:14px;
+}
+
+.sel select{
+  background:#0b1625;
+  color:var(--txt);
+  border:0;
+  outline:none;
+}
+
+/* أزرار ابدأ / إيقاف (الميكروفون) */
+.micbar{
+  display:flex;
+  gap:8px;
+  margin-inline-start:auto;
+}
+
+.micbar button{
+  padding:10px 14px;
+  border:0;
+  border-radius:10px;
+  background:#122235;
+  color:var(--txt);
+  cursor:pointer;
+}
+
+.micbar button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* سطر إدخال السؤال وزر "اسألني" */
+.ask{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  background:rgba(255,255,255,.06);
+  border-radius:14px;
+  padding:10px;
+  border:1px solid rgba(255,255,255,.08);
+}
+
+.ask input{
+  flex:1;
+  padding:12px 14px;
+  border:0;
+  border-radius:10px;
+  background:#0b1625;
+  color:var(--txt);
+  outline:none;
+}
+
+.ask button{
+  padding:12px 18px;
+  border:0;
+  border-radius:12px;
+  background:linear-gradient(135deg, var(--acc1), var(--acc2));
+  color:#091420;
+  font-weight:700;
+  cursor:pointer;
+}
+
+.ask button:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* المربع اللي كان أزرق: خليناه شفاف وصغير */
+.panel{
+  display: contents;
+}
+
+/* نص الإجابة نفسه (للنسخة القديمة) */
+.result{
+  white-space:pre-wrap;
+  line-height:1.9;
+}
+
+/* إخفاء شريط حالة السيرفر القديم لو موجود */
+#serverStatus{
+  display:none;
+}
+
+/* === تنسيق أزرار سماع الصوت والإيقاف فقط === */
+#btnMic,
+#btnStop{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+
+  padding:4px 10px;
+  font-size:0.8rem;        /* يصغر النص والأيقونة شوي */
+  border-radius:999px;     /* كبسولة ناعمة */
+
+  border:1px solid rgba(56,189,248,0.8);   /* إطار أزرق ناعم */
+  background:#020617;                       /* خلفية غامقة تشبه المنصّة */
+  color:#e5e7eb;                            /* نص فاتح */
+
+  margin-top:4px;
+  margin-inline-start:6px;  /* تبعد الأزرار شوي عن باقي العناصر */
+
+  cursor:pointer;
+  transition:transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+#btnMic:hover,
+#btnStop:hover{
+  opacity:1;
+  box-shadow:0 3px 10px rgba(15,23,42,0.6);
+  transform:translateY(-1px);
+}
+
+#btnMic:active,
+#btnStop:active{
+  transform:scale(0.97);
+}
+
+/* إعادة حركة فقاعة دُرى بدون لمس الأزرار */
+/* نطبّق الحركة على صورة durra.png فقط */
+img[src*="durra.png"]{
+  animation:durra-bubble 4s ease-in-out infinite;
+}
+
+/* تعريف حركة الفقاعة */
+@keyframes durra-bubble{
+  0%{
+    transform:translateY(0);
+  }
+  50%{
+    transform:translateY(-6px);
+  }
+  100%{
+    transform:translateY(0);
+  }
+}
+
+/* ===== مربع المحادثة للإجابات (messages) ===== */
 #messages{
   margin-top:12px;
   padding:12px 14px;
-  background:rgba(0,0,0,0.32);
+  background:rgba(15,23,42,0.85);
   border-radius:16px;
   border:1px solid rgba(148,163,184,0.45);
   max-height:260px;
@@ -19,34 +251,39 @@
 
 .message.user{
   color:var(--muted);
+  text-align:right;
 }
 
 .message.assistant{
   color:var(--txt);
 }
 
-/* الكسور والأسس */
-.message.assistant p{margin:6px 0; line-height:1.9;}
+/* كسر بسيط فوق بعض للإجابات */
 .frac{
   display:inline-flex;
   flex-direction:column;
   align-items:center;
-  vertical-align:middle;
-  margin:0 .2em;
+  justify-content:center;
   font-size:0.95em;
+  line-height:1.1;
+  vertical-align:middle;
+  margin:0 2px;
 }
-.frac .top,
-.frac .bot{
-  line-height:1.2;
-  padding:0 2px;
-  white-space:nowrap;
+
+/* بسط */
+.frac .top{
+  padding:0 2px 1px;
 }
+
+/* الخط الفاصل بين البسط والمقام */
 .frac .bar{
   width:100%;
   border-top:1px solid currentColor;
   margin:1px 0;
 }
-.pow sup{
-  font-size:0.75em;
-  vertical-align:super;
+
+/* مقام (ندعم كل من .bot و .bottom) */
+.frac .bot,
+.frac .bottom{
+  padding:1px 2px 0;
 }
