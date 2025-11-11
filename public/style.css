@@ -211,3 +211,22 @@ h1{
 #btnStop:active{
   transform:scale(0.97);
 }
+/* إعادة حركة فقاعة دُرى بدون لمس الأزرار */
+
+/* نطبّق الحركة على صورة durra.png فقط */
+img[src*="durra.png"]{
+  animation:durra-bubble 4s ease-in-out infinite;
+}
+
+/* تعريف حركة الفقاعة */
+@keyframes durra-bubble{
+  0%{
+    transform:translateY(0);
+  }
+  50%{
+    transform:translateY(-6px);
+  }
+  100%{
+    transform:translateY(0);
+  }
+}
