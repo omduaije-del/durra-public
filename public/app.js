@@ -22,11 +22,11 @@ if (!elMessages) {
   elMessages = document.createElement("div");
   elMessages.id = "messages";
   elMessages.style.cssText =
-    "max-height:420px;overflow:auto;margin-top:24px;padding:18px;border-radius:18px;border:1px solid #1e293b;background:#020617cc;color:#e5e7eb;font-size:18px;line-height:1.9;";
-  (elForm?.parentElement || document.body).appendChild(elMessages);
+    "max-height:420px;overflow:auto;margin-top:24px;padding:18px;border-radius:18px;border:1px solid #1e293b;background:#020617cc;color:#e2e8f0;font-size:15px;line-height:1.8;";
+  elForm.insertAdjacentElement("afterend", elMessages);
 }
 
-// أزرار الصوت (سيتــم إنشاؤها لاحقًا لو مش موجودة)
+// أزرار اختيارية (لو موجودة في الصفحة)
 let elMicBtn =
   document.getElementById("btnMic") ||
   document.querySelector("[data-role='mic']");
@@ -35,230 +35,200 @@ let elReadBtn =
   document.getElementById("btnRead") ||
   document.querySelector("[data-role='tts']");
 
+/** حالة قراءة الإجابة صوتيًا (تشغيل/إيقاف) */
+let isReading = false;
+
 // لتخزين آخر إجابة من دُرّى (للصوت)
 let lastAssistantText = "";
 
 // =======================
-// دوال مساعدة لتنظيف النص
+// دوال مساعدة لعرض الرسائل
 // =======================
 
-// دالة تنظّف النص من الرموز المزعجة قبل العرض
-function cleanText(text) {
-  if (!text) return "";
-
-  return text
-    // إزالة كتل الكود إن وجدت ```...```
-    .replace(/```[\s\S]*?```/g, "")
-    // إزالة عناوين ماركداون ### و ## و # ونبدّلها بسطر جديد
-    .replace(/#+\s*/g, "\n")
-    // إزالة ** من التنسيق
-    .replace(/\*\*/g, "")
-    // إزالة العلامات الزايدة من لاتِك
-    .replace(/\\left|\\right/g, "")
-    .replace(/\\cdot/g, " × ")
-    .replace(/\\times/g, " × ")
-    .replace(/\\div/g, " ÷ ")
-    .replace(/\\sqrt/g, " جذر ")
-    .replace(/\\pm/g, " ± ")
-    .replace(/\\[\[\]\(\)]/g, "")
-    // حذف باك-تيك وبقية الزينة
-    .replace(/`/g, "")
-    // تقليل المسافات المكرّرة
-    .replace(/[ \t]+/g, " ")
-    // ترتيب الأسطر الفارغة
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+function scrollMessagesToBottom() {
+  try {
+    elMessages.scrollTop = elMessages.scrollHeight;
+  } catch (e) {
+    // تجاهل
+  }
 }
 
-// تحويل 2/3 أو ٢/٣ إلى كسر اعتيادي فوق بعض
-function renderFractions(text) {
-  if (!text) return "";
+function createMessageBubble(text, sender = "assistant") {
+  const wrapper = document.createElement("div");
+  wrapper.className = "msg-row " + sender;
 
-  // أرقام عربية (0-9) أو هندية (٠-٩)
-  const fractionRegex = /([\d\u0660-\u0669]+)\s*\/\s*([\d\u0660-\u0669]+)/g;
+  const bubble = document.createElement("div");
+  bubble.className =
+    sender === "user" ? "msg msg-user" : "msg msg-assistant";
 
-  return text.replace(
-    fractionRegex,
-    (match, top, bottom) =>
-      `<span class="frac"><span class="top">${top}</span><span class="bottom">${bottom}</span></span>`
-  );
+  // نُبقي النص كما هو (بدون HTML) لتفادي أي أخطار
+  bubble.textContent = text;
+
+  wrapper.appendChild(bubble);
+  return wrapper;
 }
 
-// رسالة خطأ لطيفة للمستخدم (بدون فضايح الخادم 😄)
-function showFriendlyError() {
-  addMessage(
-    "⚠ تعذّر إكمال الإجابة الآن بسبب ضغط على الخادم. انتظر دقيقة ثم حاول مرة أخرى.",
-    "assistant"
-  );
-}
-
-// =======================
-// عرض الرسائل في الصندوق
-// =======================
-
-function addMessage(text, who = "assistant") {
+function addMessage(text, sender = "assistant") {
   if (!elMessages) return;
 
-  const div = document.createElement("div");
-  div.className = "message " + (who === "user" ? "user" : "assistant");
-  div.style.margin = "10px 0";
-
-  if (who === "assistant") {
-    const cleaned = cleanText(text || "");
-    const withFracs = renderFractions(cleaned);
-    div.innerHTML = withFracs || "…";
-    lastAssistantText = cleaned;
-  } else {
-    div.textContent = text || "";
-  }
-
-  elMessages.appendChild(div);
-  elMessages.scrollTop = elMessages.scrollHeight;
+  const bubble = createMessageBubble(text, sender);
+  elMessages.appendChild(bubble);
+  scrollMessagesToBottom();
 }
 
 // =======================
-// الاتصال بالخادم
+// تنظيف وتجميل نص الإجابة
 // =======================
 
-async function pingOnce() {
-  try {
-    const res = await fetch(`${API_BASE}/health`, { cache: "no-store" });
-    const data = await res.json().catch(() => ({}));
-    console.log("[PING]", data);
-  } catch (e) {
-    console.warn("[PING_ERROR]", e);
-  }
+function cleanText(raw) {
+  if (!raw) return "";
+
+  let text = String(raw);
+
+  // إزالة المسافات في البداية والنهاية
+  text = text.trim();
+
+  // إزالة كتل الكود ``` ... ```
+  text = text.replace(/```[\s\S]*?```/g, "");
+
+  // إزالة علامات العناوين في ماركداون (#, ##, ###)
+  text = text.replace(/^#{1,6}\s*/gm, "");
+
+  // إزالة النجوم الزائدة **粗**
+  text = text.replace(/\*\*/g, "");
+
+  // إزالة الروابط بصيغة [نص](رابط)
+  text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, "$1");
+
+  // استبدال بعض رموز LaTeX الشائعة برموز بسيطة
+  text = text
+    .replace(/\\times|\\cdot/g, "×")
+    .replace(/\\div/g, "÷")
+    .replace(/\\leq/g, "≤")
+    .replace(/\\geq/g, "≥")
+    .replace(/\\neq/g, "≠")
+    .replace(/\\approx/g, "≈")
+    .replace(/\\sqrt\{([^}]+)\}/g, "√($1)")
+    .replace(/\\pi\b/g, "π");
+
+  // تحويل الكسور البسيطة على شكل a/b إلى نمط مقروء (ليس ضروريًا لكنها حركة لطيفة)
+  text = text.replace(/(\d+)\s*\/\s*(\d+)/g, "$1⁄$2");
+
+  // توحيد الأسطر المكررة الفارغة
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  // إزالة العلامات الغريبة المتكررة
+  text = text
+    .replace(/[■◆◇◆]+/g, "")
+    .replace(/[·•]+/g, "•");
+
+  // بعض المنصات ترجع مسافات غريبة
+  text = text.replace(/\u00A0/g, " ");
+
+  // إزالة أي backticks مفردة باقية
+  text = text.replace(/`/g, "");
+
+  // تقليل المسافات المكرّرة
+  text = text.replace(/ {2,}/g, " ");
+
+  return text.trim();
 }
 
-// الدالة الأساسية: إرسال السؤال وقراءة الإجابة
+// =======================
+// استدعاء API
+// =======================
+
+async function askQuestionToAPI(question) {
+  const payload = { question };
+
+  const res = await fetch(API_BASE + "/ask", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    let msg = "حدث خطأ أثناء الاتصال بالخادم.";
+    try {
+      const data = await res.json();
+      if (data && data.error) msg = data.error;
+    } catch (e) {
+      // تجاهل
+    }
+    throw new Error(msg);
+  }
+
+  const data = await res.json();
+  return data;
+}
+
+// =======================
+// تشغيل واجهة المستخدم
+// =======================
+
+let isBusy = false;
+
 async function ask() {
-  if (!elInput) {
-    addMessage("⚠ لم أجد خانة السؤال في الصفحة.", "assistant");
-    return;
-  }
+  if (isBusy) return;
 
-  const q = (elInput.value || "").trim();
+  const q = (elInput && elInput.value ? elInput.value : "").trim();
   if (!q) {
-    addMessage("✏️ اكتب سؤالك أولًا.", "assistant");
+    if (elInput) elInput.focus();
     return;
   }
 
-  // مسح الأسئلة/الإجابات السابقة عند كل سؤال جديد
-  elMessages.innerHTML = "";
+  isBusy = true;
 
-  // عرض سؤال المستخدم
+  // إضافة رسالة المستخدم
   addMessage(q, "user");
-  elInput.value = "";
 
-  // رسالة "جاري التفكير"
-  const thinking = document.createElement("div");
-  thinking.className = "message assistant";
-  thinking.textContent = "… جاري التفكير";
-  thinking.style.margin = "10px 0";
-  elMessages.appendChild(thinking);
-  elMessages.scrollTop = elMessages.scrollHeight;
+  // مسح الحقل
+  if (elInput) {
+    elInput.value = "";
+    elInput.disabled = true;
+  }
+
+  // رسالة انتظار
+  const thinkingMsg = createMessageBubble(
+    "ثواني… دعيني أفكّر في الحل خطوة خطوة 🤍",
+    "assistant"
+  );
+  elMessages.appendChild(thinkingMsg);
+  scrollMessagesToBottom();
+
+  let answerText = "";
 
   try {
-    const payload = { message: q, history: [] };
+    const data = await askQuestionToAPI(q);
+    answerText = cleanText(data.answer || "");
 
-    let resp = await fetch(`${API_BASE}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }).catch(() => null);
+    // تحديث آخر إجابة للصوت
+    lastAssistantText = answerText || "";
 
-    if (!resp || !resp.ok) {
-      // جرّبي المسار الاحتياطي /ask
-      resp = await fetch(`${API_BASE}/ask`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q }),
-      }).catch(() => null);
+    // استبدال رسالة الانتظار بالإجابة
+    thinkingMsg.remove();
+    addMessage(answerText || "لم أحصل على إجابة واضحة.", "assistant");
+  } catch (err) {
+    console.error(err);
+    thinkingMsg.remove();
+    addMessage(
+      err.message ||
+        "عذرًا، حصل خطأ أثناء محاولة الحصول على الإجابة. حاولي مرة أخرى.",
+      "assistant"
+    );
+  } finally {
+    isBusy = false;
+    if (elInput) {
+      elInput.disabled = false;
+      elInput.focus();
     }
-
-    thinking.remove();
-
-    if (!resp) {
-      showFriendlyError();
-      return;
-    }
-
-    const data = await resp.json().catch(() => ({}));
-
-    const reply =
-      (data && (data.reply || data.answer || data.text)) || "";
-
-    if (reply) {
-      addMessage(reply, "assistant");
-    } else {
-      showFriendlyError();
-    }
-  } catch (e) {
-    console.error("ASK_ERROR", e);
-    try { thinking.remove(); } catch (_) {}
-    showFriendlyError();
   }
 }
 
 // =======================
-// سؤال صوتي (SpeechRecognition)
-// =======================
-
-let recognition = null;
-let listening = false;
-
-function ensureRecognition() {
-  if (recognition) return recognition;
-
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) {
-    alert("العفو، المتصفح لا يدعم السؤال الصوتي (جرّب Google Chrome).");
-    return null;
-  }
-
-  const rec = new SR();
-  rec.lang = "ar-SA";
-  rec.interimResults = false;
-  rec.maxAlternatives = 1;
-
-  rec.onstart = () => {
-    listening = true;
-    if (elMicBtn) elMicBtn.textContent = "إيقاف التسجيل 🎙";
-  };
-
-  rec.onresult = (e) => {
-    const txt = (e.results?.[0]?.[0]?.transcript || "").trim();
-    if (elInput) elInput.value = txt;
-    if (txt) ask();
-  };
-
-  rec.onerror = (e) => {
-    console.warn("STT_ERROR:", e.error);
-    addMessage("⚠ تعذّر الاستماع، حاول مرة أخرى.", "assistant");
-  };
-
-  rec.onend = () => {
-    listening = false;
-    if (elMicBtn) elMicBtn.textContent = "سؤال صوتي 🎤";
-  };
-
-  recognition = rec;
-  return rec;
-}
-
-function toggleListening() {
-  const rec = ensureRecognition();
-  if (!rec) return;
-  try {
-    if (!listening) rec.start();
-    else rec.stop();
-  } catch (e) {
-    console.warn("STT_TOGGLE_ERROR:", e);
-  }
-}
-
-// =======================
-// قراءة الإجابة صوتيًا (SpeechSynthesis)
+// الصوت: قراءة إجابة دُرّى
 // =======================
 
 function speakAnswer() {
@@ -266,110 +236,118 @@ function speakAnswer() {
     addMessage("ما عندي إجابة أقرأها الآن.", "assistant");
     return;
   }
+
   if (!("speechSynthesis" in window)) {
     alert("العفو، المتصفح لا يدعم قراءة الإجابات صوتيًا.");
     return;
   }
 
+  // لو هي الآن تقرأ: نخلي الضغطه توقف القراءة
+  if (isReading || window.speechSynthesis.speaking) {
+    try {
+      window.speechSynthesis.cancel();
+    } catch (e) {
+      console.warn("TTS_CANCEL_ERROR:", e);
+    }
+    isReading = false;
+    if (elReadBtn) {
+      elReadBtn.textContent = "قراءة الإجابة 🔊";
+    }
+    return;
+  }
+
+  // هنا نبدأ القراءة من جديد
   try {
+    // إلغاء أي قراءة قديمة
     window.speechSynthesis.cancel();
+
     const u = new SpeechSynthesisUtterance(lastAssistantText);
     u.lang = "ar-SA";
     u.rate = 1;
     u.pitch = 1;
+
+    // عدّل حالة الزر إلى "إيقاف"
+    isReading = true;
+    if (elReadBtn) {
+      elReadBtn.textContent = "إيقاف القراءة ⏸";
+    }
+
+    u.onend = function () {
+      isReading = false;
+      if (elReadBtn) {
+        elReadBtn.textContent = "قراءة الإجابة 🔊";
+      }
+    };
+
+    u.onerror = function (e) {
+      console.warn("TTS_ERROR:", e);
+      isReading = false;
+      if (elReadBtn) {
+        elReadBtn.textContent = "قراءة الإجابة 🔊";
+      }
+    };
+
     window.speechSynthesis.speak(u);
   } catch (e) {
-    console.warn("TTS_ERROR", e);
+    console.warn("TTS_ERROR:", e);
+    isReading = false;
+    if (elReadBtn) {
+      elReadBtn.textContent = "قراءة الإجابة 🔊";
+    }
+    alert("تعذّر تشغيل القراءة الصوتية حاليًا.");
   }
 }
 
 // =======================
-// إنشاء أزرار الصوت تحت زر "إرسال"
-// =======================
-
-function ensureVoiceButtons(elSend) {
-  if (!elSend) return;
-
-  // نحاول نلقى شريط قديم
-  let bar = document.getElementById("voiceBar");
-
-  if (!bar) {
-    bar = document.createElement("div");
-    bar.id = "voiceBar";
-    bar.style.cssText =
-      "margin-top:10px;display:flex;gap:10px;justify-content:flex-end;";
-
-    // نضعه تحت سطر السؤال مباشرة
-    const row = elSend.closest(".ask") || elSend.parentElement || elForm || document.body;
-    const parent = row.parentElement || document.body;
-    parent.insertBefore(bar, row.nextSibling);
-  }
-
-  // زر السؤال الصوتي
-  if (!document.getElementById("btnMic")) {
-    elMicBtn = document.createElement("button");
-    elMicBtn.id = "btnMic";
-    elMicBtn.type = "button";
-    elMicBtn.textContent = "سؤال صوتي 🎤";
-    elMicBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #0ea5e9;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:14px;";
-    bar.appendChild(elMicBtn);
-  } else {
-    elMicBtn = document.getElementById("btnMic");
-  }
-
-  // زر قراءة الإجابة
-  if (!document.getElementById("btnRead")) {
-    elReadBtn = document.createElement("button");
-    elReadBtn.id = "btnRead";
-    elReadBtn.type = "button";
-    elReadBtn.textContent = "قراءة الإجابة 🔊";
-    elReadBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #22c55e;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:14px;";
-    bar.appendChild(elReadBtn);
-  } else {
-    elReadBtn = document.getElementById("btnRead");
-  }
-
-  // ربط الأحداث
-  elMicBtn.onclick = toggleListening;
-  elReadBtn.onclick = speakAnswer;
-}
-
-// =======================
-// ربط الأحداث العامة
+// ربط الأحداث مع الواجهة
 // =======================
 
 function wire() {
   if (elForm) {
-    elForm.addEventListener("submit", (e) => {
+    elForm.addEventListener("submit", function (e) {
       e.preventDefault();
       ask();
     });
   }
 
-  // زر إرسال (نبحث عنه حتى لو مو داخل الفورم)
-  let elSend =
-    document.querySelector("[data-send]") ||
-    document.getElementById("btnSend");
+  if (elMicBtn && window.SpeechRecognition) {
+    const SR =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new SR();
+    rec.lang = "ar-SA";
 
-  if (!elSend) {
-    const buttons = Array.from(document.querySelectorAll("button"));
-    elSend = buttons.find((b) =>
-      (b.textContent || "").trim().includes("إرسال")
-    );
+    elMicBtn.addEventListener("click", function () {
+      try {
+        rec.start();
+      } catch (e) {
+        console.warn("SR_START_ERROR", e);
+      }
+    });
+
+    rec.onresult = function (event) {
+      const txt =
+        event.results[0] &&
+        event.results[0][0] &&
+        event.results[0][0].transcript;
+      if (txt && elInput) {
+        elInput.value = txt;
+        elInput.focus();
+      }
+    };
+
+    rec.onerror = function (e) {
+      console.warn("SR_ERROR", e);
+    };
   }
 
-  if (elSend) {
-    elSend.setAttribute("type", "button");
-    elSend.addEventListener("click", () => ask());
-
-    // هنا نضمن إنشاء أزرار الصوت تحت زر إرسال
-    ensureVoiceButtons(elSend);
+  if (elReadBtn) {
+    elReadBtn.addEventListener("click", function () {
+      speakAnswer();
+    });
   }
 
   if (elInput) {
-    elInput.addEventListener("keydown", (e) => {
+    elInput.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         ask();
@@ -378,11 +356,24 @@ function wire() {
   }
 
   console.log(
-    "[WIRE] form:", !!elForm,
-    "input:", !!elInput,
-    "messages:", !!elMessages
+    "[WIRE] form:",
+    !!elForm,
+    "input:",
+    !!elInput,
+    "messages:",
+    !!elMessages
   );
 }
 
 wire();
+
+// Ping بسيط مرة واحدة للتأكد أن السيرفر حيّ
+async function pingOnce() {
+  try {
+    await fetch(API_BASE + "/health", { method: "GET" });
+  } catch (e) {
+    console.warn("PING_ERROR", e);
+  }
+}
+
 pingOnce();
