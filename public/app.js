@@ -420,19 +420,71 @@ function wire() {
 wire();
 pingOnce();
 // =======================
-// نقل شريط أزرار الصوت تحت مربع السؤال
+// تصغير مربعات السؤال/الإجابة وترتيب الأزرار جنب خانة السؤال
 // =======================
-function moveVoiceBarUnderInput() {
+function compactDurraLayout() {
+  if (!elForm || !elInput) return;
+
+  // تصغير خانة السؤال (حجم أصغر وأرتب)
+  try {
+    elInput.style.padding = "10px 14px";
+    elInput.style.fontSize = "16px";
+    elInput.style.lineHeight = "1.5";
+    elInput.style.height = "46px";
+    elInput.style.maxHeight = "60px";
+    elInput.style.borderRadius = "999px";
+  } catch (e) {}
+
+  // تصغير مساحة الرسائل (الإجابة)
+  if (elMessages) {
+    try {
+      elMessages.style.maxHeight = "260px";
+      elMessages.style.padding = "12px 16px";
+      elMessages.style.fontSize = "16px";
+      elMessages.style.lineHeight = "1.7";
+    } catch (e) {}
+  }
+
+  // ترتيب الأزرار جنب خانة السؤال في صف واحد
+  const submitBtn =
+    elForm.querySelector("button[type='submit'], input[type='submit']") ||
+    elForm.querySelector("button");
+
   const bar = document.getElementById("voiceBar");
-  if (!bar || !elInput) return;
 
-  // نحط شريط الأزرار مباشرة بعد مربع السؤال
-  elInput.insertAdjacentElement("afterend", bar);
+  if (!submitBtn && !bar) return;
+
+  // صف جديد يحتوي: خانة السؤال + زر الإرسال + أزرار الصوت
+  let row = document.getElementById("durraInputRow");
+  if (!row) {
+    row = document.createElement("div");
+    row.id = "durraInputRow";
+    row.style.cssText =
+      "display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap;";
+    if (elInput.parentElement) {
+      elInput.parentElement.insertBefore(row, elInput);
+    } else {
+      elForm.insertBefore(row, elForm.firstChild);
+    }
+  }
+
+  // خانة السؤال تأخذ أكبر مساحة
+  if (elInput && !row.contains(elInput)) {
+    elInput.style.flex = "1 1 auto";
+    row.appendChild(elInput);
+  }
+
+  // زر الإرسال بجانبها
+  if (submitBtn && !row.contains(submitBtn)) {
+    row.appendChild(submitBtn);
+  }
+
+  // شريط أزرار الصوت بجانبهم
+  if (bar && !row.contains(bar)) {
+    bar.style.marginTop = "0";
+    row.appendChild(bar);
+  }
 }
 
-// نتأكد إن الصفحة جاهزة ثم ننفّذ النقل
-if (document.readyState === "loading") {
-  document.addEventListener("DOMContentLoaded", moveVoiceBarUnderInput);
-} else {
-  moveVoiceBarUnderInput();
-}
+// تشغيل تنسيق الواجهة بعد الإقلاع
+compactDurraLayout();
