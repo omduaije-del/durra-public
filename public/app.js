@@ -423,26 +423,40 @@ pingOnce();
 // =======================
 // صندوق الإجابة - تنسيقه فقط بدون تغيير المنطق
 // =======================
+// =======================
+// صندوق الإجابة - قياس أكبر ومرتب
+// =======================
 function setupAnswerBox() {
   if (!elMessages) return;
 
-  // نخلي صندوق الإجابة في النص وبشكل مرتب
   try {
-    elMessages.style.maxWidth = "720px";
-    elMessages.style.margin = "24px auto 0"; // في النص
-    elMessages.style.padding = "18px 20px";
-    elMessages.style.borderRadius = "18px";
-    elMessages.style.background = "rgba(15, 23, 42, 0.95)";
-    elMessages.style.border = "1px solid #1e293b";
-    elMessages.style.boxShadow = "0 16px 35px rgba(15, 23, 42, 0.55)";
+    // يكون تقريباً نفس عرض شريط السؤال اللي فوقه
+    elMessages.style.maxWidth = "820px";
+    elMessages.style.width = "100%";
+    elMessages.style.margin = "20px auto 0"; // في النص
+
+    // حجم الصندوق أوضح من قبل
+    elMessages.style.padding = "22px 26px";
+    elMessages.style.minHeight = "90px";   // عشان ما يكون صغير حتى لو الإجابة قصيرة
+    elMessages.style.borderRadius = "22px";
+
+    // شكل قريب من الخلفية اللي فوقه
+    elMessages.style.background = "rgba(15, 23, 42, 0.9)";
+    elMessages.style.border = "1px solid #1f2937";
+    elMessages.style.boxShadow = "0 18px 40px rgba(15, 23, 42, 0.55)";
+
+    // خط أوضح للإجابة
     elMessages.style.fontSize = "18px";
     elMessages.style.lineHeight = "1.9";
+
+    // لو الإجابة طويلة يكون فيها سكرول داخلي
     elMessages.style.maxHeight = "360px";
     elMessages.style.overflowY = "auto";
   } catch (e) {
     console.log("answer box style error", e);
   }
 }
+
 
 // نتأكد إن التنسيق يشتغل بعد ما تجهز الصفحة
 if (document.readyState === "loading") {
