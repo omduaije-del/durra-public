@@ -386,3 +386,38 @@ function wire() {
 
 wire();
 pingOnce();
+// زر صغير لإيقاف الصوت بجانب زر "قراءة الإجابة 🔊"
+(function attachStopReadButton() {
+  // ننتظر شوي لحد ما تتكوّن الأزرار
+  setTimeout(() => {
+    const readBtn =
+      document.getElementById("btnRead") ||
+      document.querySelector("[data-role='tts']");
+
+    if (!readBtn) return;
+
+    // لو الزر موجود من قبل نستخدمه، لو مو موجود ننشئه
+    let stopBtn = document.getElementById("btnStopRead");
+    if (!stopBtn) {
+      stopBtn = document.createElement("button");
+      stopBtn.id = "btnStopRead";
+      stopBtn.type = "button";
+      stopBtn.textContent = "⏹";
+      stopBtn.title = "إيقاف الصوت";
+      stopBtn.style.cssText =
+        "margin-inline-start:6px;padding:4px 8px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:12px;";
+      readBtn.insertAdjacentElement("afterend", stopBtn);
+    }
+
+    // عند الضغط على زر الإيقاف نوقف أي قراءة جارية
+    stopBtn.onclick = function () {
+      try {
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+      } catch (e) {
+        console.warn("TTS_STOP_ERROR", e);
+      }
+    };
+  }, 200);
+})();
