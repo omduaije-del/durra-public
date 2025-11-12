@@ -38,6 +38,9 @@ let elReadBtn =
 // لتخزين آخر إجابة من دُرّى (للصوت)
 let lastAssistantText = "";
 
+// حالة قراءة الإجابة (تشغيل/إيقاف) — ممكن تحتاجينها لاحقًا
+let isReading = false;
+
 // =======================
 // دوال مساعدة لتنظيف النص
 // =======================
@@ -58,6 +61,8 @@ function cleanText(text) {
     .replace(/\\cdot/g, " × ")
     .replace(/\\times/g, " × ")
     .replace(/\\div/g, " ÷ ")
+    // تحويل "٣ على ٤" أو "3 على 4" إلى 3/4 حتى تنرسم ككسر
+    .replace(/([\d\u0660-\u0669]+)\s*على\s*([\d\u0660-\u0669]+)/g, "$1/$2")
     .replace(/\\sqrt/g, " جذر ")
     .replace(/\\pm/g, " ± ")
     .replace(/\\[\[\]\(\)]/g, "")
@@ -84,18 +89,7 @@ function renderFractions(text) {
   );
 }
 
-// رسالة خطأ لطيفة للمستخدم (بدون فضايح الخادم 😄)
-function showFriendlyError() {
-  addMessage(
-    "⚠ تعذّر إكمال الإجابة الآن بسبب ضغط على الخادم. انتظر دقيقة ثم حاول مرة أخرى.",
-    "assistant"
-  );
-}
-
-// =======================
-// عرض الرسائل في الصندوق
-// =======================
-
+// عرض رسالة داخل صندوق الرسائل
 function addMessage(text, who = "assistant") {
   if (!elMessages) return;
 
@@ -200,6 +194,13 @@ async function ask() {
   }
 }
 
+function showFriendlyError() {
+  addMessage(
+    "عذرًا، حصل خطأ أثناء محاولة الحصول على الإجابة. تأكدي من الاتصال بالإنترنت ثم حاولي مرة أخرى.",
+    "assistant"
+  );
+}
+
 // =======================
 // سؤال صوتي (SpeechRecognition)
 // =======================
@@ -212,7 +213,7 @@ function ensureRecognition() {
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    alert("العفو، المتصفح لا يدعم السؤال الصوتي (جرّب Google Chrome).");
+    alert("العفو، المتصفح لا يدعم السؤال الصوتي (جرّبي Google Chrome).");
     return null;
   }
 
@@ -234,7 +235,8 @@ function ensureRecognition() {
 
   rec.onerror = (e) => {
     console.warn("STT_ERROR:", e.error);
-    addMessage("⚠ تعذّر الاستماع، حاول مرة أخرى.", "assistant");
+    listening = false;
+    if (elMicBtn) elMicBtn.textContent = "سؤال صوتي 🎤";
   };
 
   rec.onend = () => {
@@ -249,11 +251,19 @@ function ensureRecognition() {
 function toggleListening() {
   const rec = ensureRecognition();
   if (!rec) return;
-  try {
-    if (!listening) rec.start();
-    else rec.stop();
-  } catch (e) {
-    console.warn("STT_TOGGLE_ERROR:", e);
+
+  if (!listening) {
+    try {
+      rec.start();
+    } catch (e) {
+      console.warn("STT_START_ERROR:", e);
+    }
+  } else {
+    try {
+      rec.stop();
+    } catch (e) {
+      console.warn("STT_STOP_ERROR:", e);
+    }
   }
 }
 
@@ -288,21 +298,16 @@ function speakAnswer() {
 // =======================
 
 function ensureVoiceButtons(elSend) {
-  if (!elSend) return;
+  if (!elForm || !elInput) return;
 
-  // نحاول نلقى شريط قديم
+  // شريط بسيط تحت الفورم للأزرار
   let bar = document.getElementById("voiceBar");
-
   if (!bar) {
     bar = document.createElement("div");
     bar.id = "voiceBar";
     bar.style.cssText =
-      "margin-top:10px;display:flex;gap:10px;justify-content:flex-end;";
-
-    // نضعه تحت سطر السؤال مباشرة
-    const row = elSend.closest(".ask") || elSend.parentElement || elForm || document.body;
-    const parent = row.parentElement || document.body;
-    parent.insertBefore(bar, row.nextSibling);
+      "margin-top:12px;display:flex;gap:10px;align-items:center;justify-content:flex-start;";
+    elForm.appendChild(bar);
   }
 
   // زر السؤال الصوتي
@@ -312,7 +317,7 @@ function ensureVoiceButtons(elSend) {
     elMicBtn.type = "button";
     elMicBtn.textContent = "سؤال صوتي 🎤";
     elMicBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #0ea5e9;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:14px;";
+      "padding:8px 14px;border-radius:10px;border:1px solid #1d4ed8;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:14px;";
     bar.appendChild(elMicBtn);
   } else {
     elMicBtn = document.getElementById("btnMic");
@@ -325,15 +330,37 @@ function ensureVoiceButtons(elSend) {
     elReadBtn.type = "button";
     elReadBtn.textContent = "قراءة الإجابة 🔊";
     elReadBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #22c55e;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:14px;";
+      "padding:8px 14px;border-radius:10px;border:1px solid #16a34a;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:14px;";
     bar.appendChild(elReadBtn);
   } else {
     elReadBtn = document.getElementById("btnRead");
   }
 
+  // زر الإيقاف الصغير ⏹ اللي أضفناه آخر مرة
+  let stopBtn = document.getElementById("btnStopRead");
+  if (!stopBtn) {
+    stopBtn = document.createElement("button");
+    stopBtn.id = "btnStopRead";
+    stopBtn.type = "button";
+    stopBtn.textContent = "⏹";
+    stopBtn.title = "إيقاف الصوت";
+    stopBtn.style.cssText =
+      "margin-inline-start:6px;padding:4px 8px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:12px;";
+    bar.appendChild(stopBtn);
+  }
+
   // ربط الأحداث
   elMicBtn.onclick = toggleListening;
   elReadBtn.onclick = speakAnswer;
+  stopBtn.onclick = function () {
+    try {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+    } catch (e) {
+      console.warn("TTS_STOP_ERROR", e);
+    }
+  };
 }
 
 // =======================
@@ -342,34 +369,24 @@ function ensureVoiceButtons(elSend) {
 
 function wire() {
   if (elForm) {
-    elForm.addEventListener("submit", (e) => {
+    elForm.addEventListener("submit", function (e) {
       e.preventDefault();
       ask();
     });
-  }
 
-  // زر إرسال (نبحث عنه حتى لو مو داخل الفورم)
-  let elSend =
-    document.querySelector("[data-send]") ||
-    document.getElementById("btnSend");
-
-  if (!elSend) {
-    const buttons = Array.from(document.querySelectorAll("button"));
-    elSend = buttons.find((b) =>
-      (b.textContent || "").trim().includes("إرسال")
-    );
-  }
-
-  if (elSend) {
-    elSend.setAttribute("type", "button");
-    elSend.addEventListener("click", () => ask());
-
-    // هنا نضمن إنشاء أزرار الصوت تحت زر إرسال
-    ensureVoiceButtons(elSend);
+    // زر الإرسال
+    const submitBtn =
+      elForm.querySelector("button[type='submit'], input[type='submit']") ||
+      elForm.querySelector("button");
+    if (submitBtn) {
+      ensureVoiceButtons(submitBtn);
+    } else {
+      ensureVoiceButtons(null);
+    }
   }
 
   if (elInput) {
-    elInput.addEventListener("keydown", (e) => {
+    elInput.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         ask();
@@ -384,40 +401,6 @@ function wire() {
   );
 }
 
+// Ping بسيط على السيرفر عند بداية التشغيل
 wire();
 pingOnce();
-// زر صغير لإيقاف الصوت بجانب زر "قراءة الإجابة 🔊"
-(function attachStopReadButton() {
-  // ننتظر شوي لحد ما تتكوّن الأزرار
-  setTimeout(() => {
-    const readBtn =
-      document.getElementById("btnRead") ||
-      document.querySelector("[data-role='tts']");
-
-    if (!readBtn) return;
-
-    // لو الزر موجود من قبل نستخدمه، لو مو موجود ننشئه
-    let stopBtn = document.getElementById("btnStopRead");
-    if (!stopBtn) {
-      stopBtn = document.createElement("button");
-      stopBtn.id = "btnStopRead";
-      stopBtn.type = "button";
-      stopBtn.textContent = "⏹";
-      stopBtn.title = "إيقاف الصوت";
-      stopBtn.style.cssText =
-        "margin-inline-start:6px;padding:4px 8px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:12px;";
-      readBtn.insertAdjacentElement("afterend", stopBtn);
-    }
-
-    // عند الضغط على زر الإيقاف نوقف أي قراءة جارية
-    stopBtn.onclick = function () {
-      try {
-        if ("speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-        }
-      } catch (e) {
-        console.warn("TTS_STOP_ERROR", e);
-      }
-    };
-  }, 200);
-})();
