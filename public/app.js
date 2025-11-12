@@ -1,5 +1,5 @@
 // =======================
-// دُرّى — واجهة مبسّطة لمعلّمة الرياضيات الذكية
+// دُرى — واجهة مبسّطة لمعلّمة الرياضيات الذكية
 // =======================
 
 const API_BASE = "https://durra-server.onrender.com";
@@ -26,7 +26,7 @@ if (!elMessages) {
   (elForm?.parentElement || document.body).appendChild(elMessages);
 }
 
-// أزرار الصوت
+// أزرار الصوت (سننشئها لاحقًا)
 let elMicBtn =
   document.getElementById("btnMic") ||
   document.querySelector("[data-role='mic']");
@@ -37,7 +37,7 @@ let elReadBtn =
 
 let elStopReadBtn = document.getElementById("btnStopRead");
 
-// لتخزين آخر إجابة من دُرّى (للصوت)
+// آخر إجابة من دُرّة (للصوت)
 let lastAssistantText = "";
 
 // =======================
@@ -74,7 +74,7 @@ function cleanText(text) {
     .trim();
 }
 
-// رسم الكسور فوق بعض مع خط الكسر
+// رسم الكسور فوق بعض مع خط كسر
 function renderFractions(text) {
   if (!text) return "";
 
@@ -88,7 +88,7 @@ function renderFractions(text) {
   );
 }
 
-// عرض الرسائل في الصندوق
+// عرض الرسائل في صندوق الدردشة
 function addMessage(text, who = "assistant") {
   if (!elMessages) return;
 
@@ -123,7 +123,7 @@ async function pingOnce() {
   }
 }
 
-// إرسال سؤال لدُرّى
+// إرسال سؤال لدُرّة
 async function ask() {
   if (!elInput) {
     addMessage("⚠ لم أجد خانة السؤال في الصفحة.", "assistant");
@@ -225,7 +225,7 @@ function ensureRecognition() {
 
   rec.onstart = () => {
     listening = true;
-    if (elMicBtn) elMicBtn.textContent = "🎙"; // تسجيل
+    if (elMicBtn) elMicBtn.textContent = "🎙"; // أثناء التسجيل
   };
 
   rec.onresult = (e) => {
@@ -237,12 +237,12 @@ function ensureRecognition() {
   rec.onerror = (e) => {
     console.warn("STT_ERROR:", e.error);
     listening = false;
-    if (elMicBtn) elMicBtn.textContent = "🎤"; // أيقونة المايك
+    if (elMicBtn) elMicBtn.textContent = "🎤"; // رجوع للمايك
   };
 
   rec.onend = () => {
     listening = false;
-    if (elMicBtn) elMicBtn.textContent = "🎤"; // رجوع للمايك
+    if (elMicBtn) elMicBtn.textContent = "🎤";
   };
 
   recognition = rec;
@@ -306,20 +306,30 @@ function stopSpeaking() {
 }
 
 // =======================
-// إنشاء شريط الأزرار تحت "إرسال"
+// إنشاء شريط الأزرار تحت زر "إرسال" مباشرة
 // =======================
 
-function ensureVoiceButtons() {
+function ensureVoiceButtons(submitBtn) {
   if (!elForm || !elInput) return;
 
-  // شريط بسيط تحت الفورم للأزرار
+  // نحدد أين نضع الشريط: تحت زر الإرسال مباشرة
+  let container = elForm;
+  if (submitBtn && submitBtn.parentElement) {
+    container = submitBtn.parentElement;
+  }
+
   let bar = document.getElementById("voiceBar");
   if (!bar) {
     bar = document.createElement("div");
     bar.id = "voiceBar";
     bar.style.cssText =
-      "margin-top:12px;display:flex;gap:10px;align-items:center;justify-content:flex-start;";
-    elForm.appendChild(bar);
+      "margin-top:8px;display:flex;gap:10px;align-items:center;justify-content:flex-start;";
+    if (submitBtn) {
+      // نضع الشريط تحت زر الإرسال مباشرة
+      submitBtn.insertAdjacentElement("afterend", bar);
+    } else {
+      container.appendChild(bar);
+    }
   }
 
   // زر السؤال الصوتي (أيقونة مايك فقط)
@@ -330,7 +340,7 @@ function ensureVoiceButtons() {
     elMicBtn.textContent = "🎤";
     elMicBtn.title = "سؤال صوتي";
     elMicBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #1d4ed8;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:16px;";
+      "padding:6px 12px;border-radius:999px;border:1px solid #1d4ed8;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:16px;";
     bar.appendChild(elMicBtn);
   } else {
     elMicBtn = document.getElementById("btnMic");
@@ -344,10 +354,11 @@ function ensureVoiceButtons() {
     elReadBtn.textContent = "🔊";
     elReadBtn.title = "قراءة الإجابة";
     elReadBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #16a34a;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:16px;";
+      "padding:6px 12px;border-radius:999px;border:1px solid #16a34a;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:16px;";
     bar.appendChild(elReadBtn);
   } else {
     elReadBtn = document.getElementById("btnRead");
+    bar.appendChild(elReadBtn);
   }
 
   // زر الإيقاف ⏹
@@ -358,10 +369,11 @@ function ensureVoiceButtons() {
     elStopReadBtn.textContent = "⏹";
     elStopReadBtn.title = "إيقاف الصوت";
     elStopReadBtn.style.cssText =
-      "padding:8px 10px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:14px;";
+      "padding:6px 10px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:14px;";
     bar.appendChild(elStopReadBtn);
   } else {
     elStopReadBtn = document.getElementById("btnStopRead");
+    bar.appendChild(elStopReadBtn);
   }
 
   // ربط الأحداث
@@ -381,8 +393,11 @@ function wire() {
       ask();
     });
 
-    // ننادي لإنشاء الأزرار تحت الفورم
-    ensureVoiceButtons();
+    // نبحث عن زر الإرسال ونمرره لإنشاء الأزرار تحته
+    const submitBtn =
+      elForm.querySelector("button[type='submit'], input[type='submit']") ||
+      elForm.querySelector("button");
+    ensureVoiceButtons(submitBtn || null);
   }
 
   if (elInput) {
