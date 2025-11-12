@@ -37,8 +37,6 @@ let elReadBtn =
 
 // لتخزين آخر إجابة من دُرّى (للصوت)
 let lastAssistantText = "";
-// حالة قراءة الإجابة (تشغيل/إيقاف)
-let isReading = false;
 
 // =======================
 // دوال مساعدة لتنظيف النص
@@ -258,6 +256,8 @@ function toggleListening() {
     console.warn("STT_TOGGLE_ERROR:", e);
   }
 }
+
+// =======================
 // قراءة الإجابة صوتيًا (SpeechSynthesis)
 // =======================
 
@@ -271,58 +271,15 @@ function speakAnswer() {
     return;
   }
 
-  // لو القراءة شغّالة الآن: نوقفها ونرجّع الزر لحالته العادية
-  if (isReading || window.speechSynthesis.speaking) {
-    try {
-      window.speechSynthesis.cancel();
-    } catch (e) {
-      console.warn("TTS_CANCEL_ERROR", e);
-    }
-    isReading = false;
-    if (elReadBtn) {
-      elReadBtn.textContent = "قراءة الإجابة 🔊";
-    }
-    return;
-  }
-
-  // نبدأ قراءة جديدة
   try {
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(lastAssistantText);
     u.lang = "ar-SA";
     u.rate = 1;
     u.pitch = 1;
-
-    isReading = true;
-    if (elReadBtn) {
-      elReadBtn.textContent = "إيقاف القراءة ⏸";
-    }
-
-    u.onend = function () {
-      isReading = false;
-      if (elReadBtn) {
-        elReadBtn.textContent = "قراءة الإجابة 🔊";
-      }
-    };
-
-    u.onerror = function (e) {
-      console.warn("TTS_ERROR", e);
-      isReading = false;
-      if (elReadBtn) {
-        elReadBtn.textContent = "قراءة الإجابة 🔊";
-      }
-    };
-
     window.speechSynthesis.speak(u);
   } catch (e) {
     console.warn("TTS_ERROR", e);
-    isReading = false;
-    if (elReadBtn) {
-      elReadBtn.textContent = "قراءة الإجابة 🔊";
-    }
-  }
-}
-
   }
 }
 
