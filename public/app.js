@@ -301,8 +301,11 @@ function speakAnswer() {
 // إنشاء الأزرار إن لم تكن موجودة
 // -----------------------
 
+// -----------------------
+// إنشاء الأزرار أو إظهارها إن كانت مخفية
+// -----------------------
 function ensureButtons() {
-  // نحاول نقرأهم من الـ DOM أولاً
+  // نحاول نقرأ الأزرار من الـ DOM
   elMicBtn =
     document.getElementById("btnMic") ||
     document.querySelector("[data-role='mic']") ||
@@ -313,7 +316,7 @@ function ensureButtons() {
     document.querySelector("[data-role='tts']") ||
     elReadBtn;
 
-  // نحتاج حاوية نضع فيها الأزرار
+  // نحتاج حاوية نضع فيها الأزرار إذا اضطرينا ننشئها
   let controlsContainer = null;
   if (elForm) {
     controlsContainer = elForm.querySelector(".controls");
@@ -328,6 +331,36 @@ function ensureButtons() {
   } else {
     controlsContainer = document.body;
   }
+
+  // لو زر الميكروفون موجود لكن مخفي، نرجّعه
+  if (elMicBtn) {
+    elMicBtn.hidden = false;
+    elMicBtn.style.display = "inline-flex";
+  } else {
+    // لو مو موجود أصلاً، ننشئه
+    elMicBtn = document.createElement("button");
+    elMicBtn.id = "btnMic";
+    elMicBtn.type = "button";
+    elMicBtn.textContent = "🎙️ سؤال صوتي";
+    elMicBtn.style.marginInlineStart = "8px";
+    controlsContainer.appendChild(elMicBtn);
+  }
+
+  // لو زر قراءة الإجابة موجود لكن مخفي، نرجّعه
+  if (elReadBtn) {
+    elReadBtn.hidden = false;
+    elReadBtn.style.display = "inline-flex";
+  } else {
+    // لو مو موجود أصلاً، ننشئه
+    elReadBtn = document.createElement("button");
+    elReadBtn.id = "btnRead";
+    elReadBtn.type = "button";
+    elReadBtn.textContent = "قراءة الإجابة 🔊";
+    elReadBtn.style.marginInlineStart = "8px";
+    controlsContainer.appendChild(elReadBtn);
+  }
+}
+
 
   // زر الميكروفون (السؤال الصوتي)
   if (!elMicBtn) {
