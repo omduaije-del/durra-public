@@ -419,3 +419,76 @@ function wire() {
 // تشغيل أولي
 wire();
 pingOnce();
+
+// =======================
+// ترتيب واجهة دُرّة في النص وتصغير الصناديق
+// =======================
+function layoutDurraMiddle() {
+  if (!elForm) return;
+
+  // غلاف في النص يحوي الفورم وصندوق الرسائل
+  let wrap = document.getElementById("durraCenterWrap");
+  if (!wrap) {
+    wrap = document.createElement("div");
+    wrap.id = "durraCenterWrap";
+    wrap.style.cssText =
+      "max-width:720px;margin:24px auto 0;display:flex;flex-direction:column;gap:12px;align-items:stretch;";
+    const parent = elForm.parentElement || document.body;
+    parent.insertBefore(wrap, elForm);
+  }
+
+  // نحرك الفورم وصندوق الرسائل داخل الغلاف الجديد (في النص)
+  if (!wrap.contains(elForm)) wrap.appendChild(elForm);
+  if (elMessages && !wrap.contains(elMessages)) wrap.appendChild(elMessages);
+
+  // نخلي الفورم صف واحد في النص
+  elForm.style.display = "flex";
+  elForm.style.gap = "10px";
+  elForm.style.alignItems = "center";
+  elForm.style.justifyContent = "center";
+  elForm.style.flexWrap = "wrap";
+
+  // تصغير خانة السؤال
+  if (elInput) {
+    elInput.style.flex = "1 1 260px";
+    elInput.style.maxWidth = "100%";
+    elInput.style.height = "44px";
+    elInput.style.borderRadius = "999px";
+    elInput.style.padding = "10px 16px";
+    elInput.style.fontSize = "16px";
+    elInput.style.lineHeight = "1.5";
+  }
+
+  // زر الإرسال جنب خانة السؤال
+  const submitBtn =
+    elForm.querySelector("button[type='submit'], input[type='submit']") ||
+    elForm.querySelector("button");
+
+  if (submitBtn) {
+    submitBtn.style.height = "44px";
+    submitBtn.style.display = "inline-flex";
+    submitBtn.style.alignItems = "center";
+    submitBtn.style.justifyContent = "center";
+    submitBtn.style.padding = "0 22px";
+  }
+
+  // شريط أزرار الصوت بجانبهم
+  const bar = document.getElementById("voiceBar");
+  if (bar) {
+    bar.style.marginTop = "0";
+    bar.style.display = "flex";
+    bar.style.gap = "8px";
+  }
+
+  // إزالة الشريط الكبير تحت (صندوق الرسائل شكله شفاف وصغير)
+  if (elMessages) {
+    elMessages.style.marginTop = "16px";
+    elMessages.style.padding = "0";
+    elMessages.style.background = "transparent";
+    elMessages.style.border = "none";
+    elMessages.style.maxHeight = "none";
+  }
+}
+
+// تشغيل ترتيب الواجهة في النص
+layoutDurraMiddle();
