@@ -123,7 +123,7 @@ async function pingOnce() {
   }
 }
 
-// إرسال سؤال لدُرّة
+// إرسال سؤال لدُرّى
 async function ask() {
   if (!elInput) {
     addMessage("⚠ لم أجد خانة السؤال في الصفحة.", "assistant");
@@ -225,7 +225,7 @@ function ensureRecognition() {
 
   rec.onstart = () => {
     listening = true;
-    if (elMicBtn) elMicBtn.textContent = "إيقاف التسجيل 🎙";
+    if (elMicBtn) elMicBtn.textContent = "🎙"; // تسجيل
   };
 
   rec.onresult = (e) => {
@@ -237,12 +237,12 @@ function ensureRecognition() {
   rec.onerror = (e) => {
     console.warn("STT_ERROR:", e.error);
     listening = false;
-    if (elMicBtn) elMicBtn.textContent = "سؤال صوتي 🎤";
+    if (elMicBtn) elMicBtn.textContent = "🎤"; // أيقونة المايك
   };
 
   rec.onend = () => {
     listening = false;
-    if (elMicBtn) elMicBtn.textContent = "سؤال صوتي 🎤";
+    if (elMicBtn) elMicBtn.textContent = "🎤"; // رجوع للمايك
   };
 
   recognition = rec;
@@ -322,27 +322,29 @@ function ensureVoiceButtons() {
     elForm.appendChild(bar);
   }
 
-  // زر السؤال الصوتي
+  // زر السؤال الصوتي (أيقونة مايك فقط)
   if (!document.getElementById("btnMic")) {
     elMicBtn = document.createElement("button");
     elMicBtn.id = "btnMic";
     elMicBtn.type = "button";
-    elMicBtn.textContent = "سؤال صوتي 🎤";
+    elMicBtn.textContent = "🎤";
+    elMicBtn.title = "سؤال صوتي";
     elMicBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #1d4ed8;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:14px;";
+      "padding:8px 14px;border-radius:10px;border:1px solid #1d4ed8;background:#0f172a;color:#e5e7eb;cursor:pointer;font-size:16px;";
     bar.appendChild(elMicBtn);
   } else {
     elMicBtn = document.getElementById("btnMic");
   }
 
-  // زر قراءة الإجابة
+  // زر قراءة الإجابة (أيقونة سماعة فقط)
   if (!document.getElementById("btnRead")) {
     elReadBtn = document.createElement("button");
     elReadBtn.id = "btnRead";
     elReadBtn.type = "button";
-    elReadBtn.textContent = "قراءة الإجابة 🔊";
+    elReadBtn.textContent = "🔊";
+    elReadBtn.title = "قراءة الإجابة";
     elReadBtn.style.cssText =
-      "padding:8px 14px;border-radius:10px;border:1px solid #16a34a;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:14px;";
+      "padding:8px 14px;border-radius:10px;border:1px solid #16a34a;background:#052e16;color:#bbf7d0;cursor:pointer;font-size:16px;";
     bar.appendChild(elReadBtn);
   } else {
     elReadBtn = document.getElementById("btnRead");
@@ -356,7 +358,7 @@ function ensureVoiceButtons() {
     elStopReadBtn.textContent = "⏹";
     elStopReadBtn.title = "إيقاف الصوت";
     elStopReadBtn.style.cssText =
-      "padding:8px 10px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:12px;";
+      "padding:8px 10px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:14px;";
     bar.appendChild(elStopReadBtn);
   } else {
     elStopReadBtn = document.getElementById("btnStopRead");
