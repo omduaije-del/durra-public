@@ -1,5 +1,5 @@
 // =======================
-// دُرّى — واجهة مبسّطة لمعلمـة الرياضيات الذكية
+// دُرّى — واجهة مبسّطة لمعلّمة الرياضيات الذكية
 // =======================
 
 const API_BASE = "https://durra-server.onrender.com";
@@ -26,7 +26,7 @@ if (!elMessages) {
   (elForm?.parentElement || document.body).appendChild(elMessages);
 }
 
-// أزرار الصوت (سيتــم إنشاؤها لاحقًا لو مش موجودة)
+// أزرار الصوت
 let elMicBtn =
   document.getElementById("btnMic") ||
   document.querySelector("[data-role='mic']");
@@ -35,38 +35,37 @@ let elReadBtn =
   document.getElementById("btnRead") ||
   document.querySelector("[data-role='tts']");
 
+let elStopReadBtn = document.getElementById("btnStopRead");
+
 // لتخزين آخر إجابة من دُرّى (للصوت)
 let lastAssistantText = "";
 
-// حالة قراءة الإجابة (تشغيل/إيقاف) — ممكن تحتاجينها لاحقًا
-let isReading = false;
-
 // =======================
-// دوال مساعدة لتنظيف النص
+// دوال مساعدة للنصوص
 // =======================
 
-// دالة تنظّف النص من الرموز المزعجة قبل العرض
+// تنظيف النص من الرموز الزائدة + دعم "على" في الكسور
 function cleanText(text) {
   if (!text) return "";
 
-  return text
-    // إزالة كتل الكود إن وجدت ```...```
+  return String(text)
+    // إزالة كتل الكود ```...```
     .replace(/```[\s\S]*?```/g, "")
-    // إزالة عناوين ماركداون ### و ## و # ونبدّلها بسطر جديد
+    // إزالة عناوين ماركداون ###
     .replace(/#+\s*/g, "\n")
     // إزالة ** من التنسيق
     .replace(/\*\*/g, "")
-    // إزالة العلامات الزايدة من لاتِك
+    // إزالة أوامر LaTeX الزائدة
     .replace(/\\left|\\right/g, "")
     .replace(/\\cdot/g, " × ")
     .replace(/\\times/g, " × ")
     .replace(/\\div/g, " ÷ ")
-    // تحويل "٣ على ٤" أو "3 على 4" إلى 3/4 حتى تنرسم ككسر
+    // تحويل "٣ على ٤" أو "3 على 4" إلى 3/4 حتى نرسمها ككسر
     .replace(/([\d\u0660-\u0669]+)\s*على\s*([\d\u0660-\u0669]+)/g, "$1/$2")
     .replace(/\\sqrt/g, " جذر ")
     .replace(/\\pm/g, " ± ")
     .replace(/\\[\[\]\(\)]/g, "")
-    // حذف باك-تيك وبقية الزينة
+    // حذف باك-تيك
     .replace(/`/g, "")
     // تقليل المسافات المكرّرة
     .replace(/[ \t]+/g, " ")
@@ -75,7 +74,7 @@ function cleanText(text) {
     .trim();
 }
 
-// تحويل 2/3 أو ٢/٣ إلى كسر اعتيادي فوق بعض
+// رسم الكسور فوق بعض مع خط الكسر
 function renderFractions(text) {
   if (!text) return "";
 
@@ -85,11 +84,11 @@ function renderFractions(text) {
   return text.replace(
     fractionRegex,
     (match, top, bottom) =>
-      `<span class="frac"><span class="top">${top}</span><span class="bottom">${bottom}</span></span>`
+      `<span class="frac"><span class="top">${top}</span><span class="bar"></span><span class="bottom">${bottom}</span></span>`
   );
 }
 
-// عرض رسالة داخل صندوق الرسائل
+// عرض الرسائل في الصندوق
 function addMessage(text, who = "assistant") {
   if (!elMessages) return;
 
@@ -111,7 +110,7 @@ function addMessage(text, who = "assistant") {
 }
 
 // =======================
-// الاتصال بالخادم
+// الاتصال بالخادم (السيرفر)
 // =======================
 
 async function pingOnce() {
@@ -124,7 +123,7 @@ async function pingOnce() {
   }
 }
 
-// الدالة الأساسية: إرسال السؤال وقراءة الإجابة
+// إرسال سؤال لدُرّة
 async function ask() {
   if (!elInput) {
     addMessage("⚠ لم أجد خانة السؤال في الصفحة.", "assistant");
@@ -137,7 +136,7 @@ async function ask() {
     return;
   }
 
-  // مسح الأسئلة/الإجابات السابقة عند كل سؤال جديد
+  // مسح الرسائل السابقة في كل سؤال جديد
   elMessages.innerHTML = "";
 
   // عرض سؤال المستخدم
@@ -155,14 +154,15 @@ async function ask() {
   try {
     const payload = { message: q, history: [] };
 
+    // المحاولة الأولى: /api/chat
     let resp = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     }).catch(() => null);
 
+    // احتياط: لو فشل /api/chat نجرّب /ask
     if (!resp || !resp.ok) {
-      // جرّبي المسار الاحتياطي /ask
       resp = await fetch(`${API_BASE}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -178,7 +178,6 @@ async function ask() {
     }
 
     const data = await resp.json().catch(() => ({}));
-
     const reply =
       (data && (data.reply || data.answer || data.text)) || "";
 
@@ -189,7 +188,9 @@ async function ask() {
     }
   } catch (e) {
     console.error("ASK_ERROR", e);
-    try { thinking.remove(); } catch (_) {}
+    try {
+      thinking.remove();
+    } catch (_) {}
     showFriendlyError();
   }
 }
@@ -256,13 +257,13 @@ function toggleListening() {
     try {
       rec.start();
     } catch (e) {
-      console.warn("STT_START_ERROR:", e);
+      console.warn("STT_START_ERROR", e);
     }
   } else {
     try {
       rec.stop();
     } catch (e) {
-      console.warn("STT_STOP_ERROR:", e);
+      console.warn("STT_STOP_ERROR", e);
     }
   }
 }
@@ -293,11 +294,22 @@ function speakAnswer() {
   }
 }
 
+// زر إيقاف الصوت ⏹
+function stopSpeaking() {
+  try {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  } catch (e) {
+    console.warn("TTS_STOP_ERROR", e);
+  }
+}
+
 // =======================
-// إنشاء أزرار الصوت تحت زر "إرسال"
+// إنشاء شريط الأزرار تحت "إرسال"
 // =======================
 
-function ensureVoiceButtons(elSend) {
+function ensureVoiceButtons() {
   if (!elForm || !elInput) return;
 
   // شريط بسيط تحت الفورم للأزرار
@@ -336,31 +348,24 @@ function ensureVoiceButtons(elSend) {
     elReadBtn = document.getElementById("btnRead");
   }
 
-  // زر الإيقاف الصغير ⏹ اللي أضفناه آخر مرة
-  let stopBtn = document.getElementById("btnStopRead");
-  if (!stopBtn) {
-    stopBtn = document.createElement("button");
-    stopBtn.id = "btnStopRead";
-    stopBtn.type = "button";
-    stopBtn.textContent = "⏹";
-    stopBtn.title = "إيقاف الصوت";
-    stopBtn.style.cssText =
-      "margin-inline-start:6px;padding:4px 8px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:12px;";
-    bar.appendChild(stopBtn);
+  // زر الإيقاف ⏹
+  if (!document.getElementById("btnStopRead")) {
+    elStopReadBtn = document.createElement("button");
+    elStopReadBtn.id = "btnStopRead";
+    elStopReadBtn.type = "button";
+    elStopReadBtn.textContent = "⏹";
+    elStopReadBtn.title = "إيقاف الصوت";
+    elStopReadBtn.style.cssText =
+      "padding:8px 10px;border-radius:999px;border:1px solid #4b5563;background:#020617;color:#e5e7eb;cursor:pointer;font-size:12px;";
+    bar.appendChild(elStopReadBtn);
+  } else {
+    elStopReadBtn = document.getElementById("btnStopRead");
   }
 
   // ربط الأحداث
   elMicBtn.onclick = toggleListening;
   elReadBtn.onclick = speakAnswer;
-  stopBtn.onclick = function () {
-    try {
-      if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-      }
-    } catch (e) {
-      console.warn("TTS_STOP_ERROR", e);
-    }
-  };
+  elStopReadBtn.onclick = stopSpeaking;
 }
 
 // =======================
@@ -374,15 +379,8 @@ function wire() {
       ask();
     });
 
-    // زر الإرسال
-    const submitBtn =
-      elForm.querySelector("button[type='submit'], input[type='submit']") ||
-      elForm.querySelector("button");
-    if (submitBtn) {
-      ensureVoiceButtons(submitBtn);
-    } else {
-      ensureVoiceButtons(null);
-    }
+    // ننادي لإنشاء الأزرار تحت الفورم
+    ensureVoiceButtons();
   }
 
   if (elInput) {
@@ -401,6 +399,6 @@ function wire() {
   );
 }
 
-// Ping بسيط على السيرفر عند بداية التشغيل
+// تشغيل أولي
 wire();
 pingOnce();
