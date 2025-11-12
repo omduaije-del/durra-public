@@ -419,3 +419,20 @@ function wire() {
 // تشغيل أولي
 wire();
 pingOnce();
+// =======================
+// نقل شريط أزرار الصوت تحت مربع السؤال
+// =======================
+function moveVoiceBarUnderInput() {
+  const bar = document.getElementById("voiceBar");
+  if (!bar || !elInput) return;
+
+  // نحط شريط الأزرار مباشرة بعد مربع السؤال
+  elInput.insertAdjacentElement("afterend", bar);
+}
+
+// نتأكد إن الصفحة جاهزة ثم ننفّذ النقل
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", moveVoiceBarUnderInput);
+} else {
+  moveVoiceBarUnderInput();
+}
