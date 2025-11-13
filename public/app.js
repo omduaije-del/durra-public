@@ -537,3 +537,27 @@ function layoutDurraMiddle() {
 
 // تشغيل ترتيب الواجهة في النص
 layoutDurraMiddle();
+// =======================
+// تفريغ صندوق الإجابة عند بدء كتابة سؤال جديد
+// =======================
+function autoClearAnswerOnTyping() {
+  if (!elInput || !elMessages) return;
+
+  elInput.addEventListener("input", () => {
+    // لو ما فيه كتابة، لا تسوي شي
+    const value = (elInput.value || "").trim();
+    if (!value) return;
+
+    // إذا كان فيه إجابة قديمة، نمسحها
+    if (elMessages.innerHTML && elMessages.innerHTML.trim() !== "") {
+      elMessages.innerHTML = "";
+    }
+  });
+}
+
+// تفعيل الدالة بعد جاهزية الصفحة
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", autoClearAnswerOnTyping);
+} else {
+  autoClearAnswerOnTyping();
+}
